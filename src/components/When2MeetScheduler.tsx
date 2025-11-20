@@ -175,14 +175,18 @@ export default function When2MeetScheduler({
     const month = parseInt(match[1]);
     const dayNum = parseInt(match[2]);
 
-    // 해당 시간대의 일정 찾기 (날짜와 시간 모두 비교)
+    // 해당 시간대가 포함된 일정 찾기 (시작 시간뿐만 아니라 시작~종료 사이의 모든 시간 확인)
     const schedule = currentUserParticipant.schedules.find((s: any) => {
       const scheduleStart = new Date(s.start);
+      const scheduleEnd = new Date(s.end);
       const scheduleMonth = scheduleStart.getMonth() + 1;
       const scheduleDay = scheduleStart.getDate();
-      const scheduleHour = scheduleStart.getHours();
+      const scheduleStartHour = scheduleStart.getHours();
+      const scheduleEndHour = scheduleEnd.getHours();
 
-      return scheduleMonth === month && scheduleDay === dayNum && scheduleHour === hour;
+      // 같은 날짜이고, 해당 시간이 일정의 시작~종료 시간 사이에 있는지 확인
+      return scheduleMonth === month && scheduleDay === dayNum &&
+             hour >= scheduleStartHour && hour < scheduleEndHour;
     });
 
     return schedule?.title || null;
