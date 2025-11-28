@@ -30,12 +30,24 @@ interface KanbanBoardProps {
 
 export default function KanbanBoard({ tasks, setTasks }: KanbanBoardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newTask, setNewTask] = useState({ 
-    title: '', 
-    description: '', 
+
+  // 기본값: 시작일 = 오늘, 종료일 = 내일
+  const getDefaultDates = () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return {
+      startDate: today.toISOString().split('T')[0],
+      endDate: tomorrow.toISOString().split('T')[0]
+    };
+  };
+
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
     status: 'todo' as const,
-    startDate: '',
-    endDate: ''
+    ...getDefaultDates()
   });
 
   // 칸반보드에는 subtask가 없는 parent task와 subtask만 표시
@@ -67,7 +79,7 @@ export default function KanbanBoard({ tasks, setTasks }: KanbanBoardProps) {
           status: newTask.status,
         },
       ]);
-      setNewTask({ title: '', description: '', status: 'todo', startDate: '', endDate: '' });
+      setNewTask({ title: '', description: '', status: 'todo', ...getDefaultDates() });
       setIsDialogOpen(false);
     }
   };
@@ -123,7 +135,7 @@ export default function KanbanBoard({ tasks, setTasks }: KanbanBoardProps) {
                   onChange={(e) => setNewTask({ ...newTask, status: e.target.value as Task['status'] })}
                 >
                   <option value="todo">To Do</option>
-                  <option value="inProgress">In Progress</option>
+                  <option value="progress">In Progress</option>
                   <option value="done">Done</option>
                 </select>
               </div>

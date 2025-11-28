@@ -37,17 +37,28 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
   const [isSubTaskDialogOpen, setIsSubTaskDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectViews, setProjectViews] = useState<ProjectView[]>([]);
+
+  // 기본값: 시작일 = 오늘, 종료일 = 내일
+  const getDefaultDates = () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return {
+      startDate: today.toISOString().split('T')[0],
+      endDate: tomorrow.toISOString().split('T')[0]
+    };
+  };
+
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
-    startDate: '',
-    endDate: '',
+    ...getDefaultDates()
   });
   const [newSubTask, setNewSubTask] = useState({
     title: '',
     description: '',
-    startDate: '',
-    endDate: '',
+    ...getDefaultDates()
   });
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -193,7 +204,7 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
       };
       
       setTasks([...tasks, newTask]);
-      setNewProject({ title: '', description: '', startDate: '', endDate: '' });
+      setNewProject({ title: '', description: '', ...getDefaultDates() });
       setIsProjectDialogOpen(false);
     }
   };
@@ -216,7 +227,7 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
       };
 
       setTasks([...tasks, newTask]);
-      setNewSubTask({ title: '', description: '', startDate: '', endDate: '' });
+      setNewSubTask({ title: '', description: '', ...getDefaultDates() });
       setIsSubTaskDialogOpen(false);
     }
   };
