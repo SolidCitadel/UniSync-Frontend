@@ -13,7 +13,9 @@ import DashboardPage from './pages/DashboardPage';
 import MyPage from './pages/MyPage';
 import GroupsPage from './pages/GroupsPage';
 import FriendsPage from './pages/FriendsPage';
-import LoginPage from './pages/LoginPage';
+
+// Components
+import LoginDialog from './components/LoginDialog';
 
 // API
 import { authApi } from './api/authApi';
@@ -115,6 +117,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   // Check if user is already logged in on mount
   useEffect(() => {
@@ -170,6 +173,16 @@ export default function App() {
   const handleLoginSuccess = (newUser: User) => {
     setUser(newUser);
     setIsLoggedIn(true);
+    setLoginDialogOpen(false);
+  };
+
+  const handleProfileClick = () => {
+    if (isLoggedIn) {
+      setCurrentPage('mypage');
+      setMobileMenuOpen(false);
+    } else {
+      setLoginDialogOpen(true);
+    }
   };
 
   const navigationItems = [
@@ -274,13 +287,10 @@ export default function App() {
       <div className="border-t border-gray-200 p-4">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setCurrentPage('mypage');
-              setMobileMenuOpen(false);
-            }}
+            onClick={handleProfileClick}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors flex-1 min-w-0"
           >
-            {user?.profileImage ? (
+            {isLoggedIn && user?.profileImage ? (
               <ImageWithFallback
                 src={user.profileImage}
                 alt="User"
@@ -289,13 +299,17 @@ export default function App() {
             ) : (
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                 <span className="text-blue-600 font-semibold text-lg">
-                  {user?.name?.charAt(0) || 'U'}
+                  {isLoggedIn && user?.name ? user.name.charAt(0) : '?'}
                 </span>
               </div>
             )}
             <div className="flex flex-col items-start text-left flex-1 min-w-0">
-              <span className="text-sm text-gray-900 truncate w-full">{user?.name || 'User'}</span>
-              <span className="text-[10px] text-gray-500 truncate w-full">{user?.email || ''}</span>
+              <span className="text-sm text-gray-900 truncate w-full">
+                {isLoggedIn && user?.name ? user.name : '게스트'}
+              </span>
+              <span className="text-[10px] text-gray-500 truncate w-full">
+                {isLoggedIn && user?.email ? user.email : '로그인이 필요합니다'}
+              </span>
             </div>
           </button>
           <NotificationPanel />
@@ -316,13 +330,14 @@ export default function App() {
     );
   }
 
-  // Show login page if not logged in
-  if (!isLoggedIn) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
-  }
-
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <>
+      <LoginDialog
+        open={loginDialogOpen}
+        onOpenChange={setLoginDialogOpen}
+        onLoginSuccess={handleLoginSuccess}
+      />
+      <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Desktop Sidebar */}
       <aside className="hidden md:block w-64 border-r border-slate-200">
         <SidebarContent />
@@ -349,6 +364,7 @@ export default function App() {
           {renderPage()}
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }

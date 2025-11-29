@@ -132,6 +132,15 @@ export interface SignupData {
 export interface AuthResponse {
   user: User;
   token: string;
+  accessToken?: string; // Backend returns accessToken
+  idToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  tokenType?: string;
+  cognitoSub?: string;
+  email?: string;
+  name?: string;
+  message?: string | null;
 }
 
 // API Response Types

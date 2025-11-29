@@ -111,18 +111,33 @@ const mockApi = {
 const realApi = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await apiClient.post<AuthResponse>('/v1/auth/signin', {
+      const response = await apiClient.post('/v1/auth/signin', {
         email: credentials.email,
         password: credentials.password,
       });
 
+      const data = response.data;
+
+      // Backend returns accessToken, not token
+      const token = data.accessToken || data.token;
+
+      // Create user object from backend response
+      const user: User = {
+        id: data.cognitoSub || data.user?.id || '',
+        name: data.name || data.user?.name || '',
+        email: data.email || data.user?.email || credentials.email,
+        googleConnected: data.user?.googleConnected || false,
+        profileImage: data.user?.profileImage,
+        ecampusToken: data.user?.ecampusToken,
+      };
+
       // Store token and user data in localStorage
-      if (response.data.token) {
-        localStorage.setItem('auth_token', response.data.token);
-        localStorage.setItem('user_data', JSON.stringify(response.data.user));
+      if (token) {
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('user_data', JSON.stringify(user));
       }
 
-      return response.data;
+      return { user, token, ...data };
     } catch (error: any) {
       const message = error.response?.data?.message || error.response?.data?.error || '로그인에 실패했습니다.';
       throw new Error(message);
@@ -131,19 +146,34 @@ const realApi = {
 
   async signup(data: SignupData): Promise<AuthResponse> {
     try {
-      const response = await apiClient.post<AuthResponse>('/v1/auth/signup', {
+      const response = await apiClient.post('/v1/auth/signup', {
         name: data.name,
         email: data.email,
         password: data.password,
       });
 
+      const responseData = response.data;
+
+      // Backend returns accessToken, not token
+      const token = responseData.accessToken || responseData.token;
+
+      // Create user object from backend response
+      const user: User = {
+        id: responseData.cognitoSub || responseData.user?.id || '',
+        name: responseData.name || responseData.user?.name || data.name,
+        email: responseData.email || responseData.user?.email || data.email,
+        googleConnected: responseData.user?.googleConnected || false,
+        profileImage: responseData.user?.profileImage,
+        ecampusToken: responseData.user?.ecampusToken,
+      };
+
       // Store token and user data in localStorage
-      if (response.data.token) {
-        localStorage.setItem('auth_token', response.data.token);
-        localStorage.setItem('user_data', JSON.stringify(response.data.user));
+      if (token) {
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('user_data', JSON.stringify(user));
       }
 
-      return response.data;
+      return { user, token, ...responseData };
     } catch (error: any) {
       const message = error.response?.data?.message || error.response?.data?.error || '회원가입에 실패했습니다.';
       throw new Error(message);
