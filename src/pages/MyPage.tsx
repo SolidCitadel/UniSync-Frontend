@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Lock, LogOut, Camera } from 'lucide-react';
+import { Mail, Lock, LogOut, Camera, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { authApi } from '@/api/authApi';
+import { ecampusApi } from '@/api/ecampusApi';
 import type { User } from '@/types';
 
 interface MyPageProps {
@@ -24,6 +25,7 @@ export default function MyPage({ user, onLogout, onUserUpdate }: MyPageProps) {
   });
 
   const [ecampusToken, setEcampusToken] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Initialize user data from props
   useEffect(() => {
@@ -72,19 +74,47 @@ export default function MyPage({ user, onLogout, onUserUpdate }: MyPageProps) {
     toast.success('Google 계정 연동이 해제되었습니다.');
   };
 
-  const handleConnectEcampus = () => {
+  const handleConnectEcampus = async () => {
     if (!ecampusToken.trim()) {
-      toast.error('Access Token을 입력해주세요.');
+      toast.error('Canvas Access Token을 입력해주세요.');
       return;
     }
 
-    // TODO: Implement E-Campus connection
-    toast.info('e-Campus 연동 기능은 곧 지원될 예정입니다.');
+    try {
+      const response = await ecampusApi.connect(ecampusToken);
+      toast.success(response.message);
+      onUserUpdate(response.user);
+      setEcampusToken(''); // Clear input
+    } catch (error: any) {
+      toast.error(error.message || 'e-Campus 연동에 실패했습니다.');
+    }
   };
 
-  const handleDisconnectEcampus = () => {
-    // TODO: Disconnect E-Campus
-    toast.success('e-Campus 연동이 해제되었습니다.');
+  const handleDisconnectEcampus = async () => {
+    try {
+      const response = await ecampusApi.disconnect();
+      toast.success(response.message);
+      onUserUpdate(response.user);
+    } catch (error: any) {
+      toast.error(error.message || 'e-Campus 연동 해제에 실패했습니다.');
+    }
+  };
+
+  const handleSyncCanvas = async () => {
+    if (!user?.ecampusToken) {
+      toast.error('먼저 Canvas Token을 연동해주세요.');
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const response = await ecampusApi.syncCanvas();
+      toast.success(response.message);
+    } catch (error: any) {
+      toast.error(error.message || 'Canvas 동기화에 실패했습니다.');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -281,11 +311,24 @@ export default function MyPage({ user, onLogout, onUserUpdate }: MyPageProps) {
                   </p>
                 </div>
               </div>
-              {user.ecampusToken && (
-                <Button variant="outline" onClick={handleDisconnectEcampus} size="sm">
-                  연동 해제
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {user.ecampusToken && (
+                  <>
+                    <Button
+                      onClick={handleSyncCanvas}
+                      disabled={isSyncing}
+                      size="sm"
+                      className="bg-blue-500 hover:bg-blue-600"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                      {isSyncing ? '동기화 중...' : '동기화'}
+                    </Button>
+                    <Button variant="outline" onClick={handleDisconnectEcampus} size="sm">
+                      연동 해제
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             {!user.ecampusToken && (
