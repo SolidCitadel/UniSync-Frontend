@@ -121,19 +121,24 @@ export const ecampusApi = {
    */
   async syncCanvas(): Promise<CanvasSyncResponse> {
     try {
+      console.log('[ecampusApi.syncCanvas] 동기화 요청 시작');
       const response = await apiClient.post('/v1/integrations/canvas/sync');
 
-      const { coursesCount, assignmentsCount } = response.data;
+      console.log('[ecampusApi.syncCanvas] 응답 받음:', response);
+      console.log('[ecampusApi.syncCanvas] 응답 데이터:', response.data);
+
+      const { success, message, coursesCount, assignmentsCount } = response.data;
 
       return {
-        success: true,
-        message: `동기화 완료: 과목 ${coursesCount}개, 과제 ${assignmentsCount}개`,
+        success: success !== false,
+        message: message || `동기화 완료: 과목 ${coursesCount || 0}개, 과제 ${assignmentsCount || 0}개`,
         coursesCount: coursesCount || 0,
         assignmentsCount: assignmentsCount || 0,
       };
     } catch (error: any) {
       console.error('[ecampusApi.syncCanvas] 에러 발생:', error);
       console.error('[ecampusApi.syncCanvas] error.response:', error.response);
+      console.error('[ecampusApi.syncCanvas] error.response.data:', error.response?.data);
 
       let message = 'Canvas 동기화에 실패했습니다.';
 
@@ -148,6 +153,8 @@ export const ecampusApi = {
         }
       } else if (error.response?.data?.error) {
         message = error.response.data.error;
+      } else if (error.message) {
+        message = `Canvas 동기화 중 오류: ${error.message}`;
       }
 
       console.error('[ecampusApi.syncCanvas] 최종 에러 메시지:', message);

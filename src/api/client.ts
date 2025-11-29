@@ -9,7 +9,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 seconds
+  timeout: 60000, // 60 seconds (Canvas 동기화는 시간이 오래 걸릴 수 있음)
 });
 
 // Request interceptor - Add JWT token to all requests
