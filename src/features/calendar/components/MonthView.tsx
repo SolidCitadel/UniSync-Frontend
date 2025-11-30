@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { toast } from 'sonner';
+import { schedulesApi } from '@/api/schedulesApi';
 import type { Schedule, Task, Calendar } from '@/types';
 
 interface MonthCalendarProps {
@@ -97,34 +98,15 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
     return calendar?.color || '#2c7fff';
   };
 
-  const handleAddSchedule = () => {
+  const handleAddSchedule = async () => {
     if (newSchedule.title.trim() && newSchedule.startDate) {
       const startDateTime = new Date(`${newSchedule.startDate}T${newSchedule.startTime || '00:00'}`);
       const endDateTime = new Date(`${newSchedule.endDate}T${newSchedule.endTime || '23:59'}`);
 
-      if (editingSchedule) {
-        // 편집 모드: 기존 스케줄 업데이트
-        setSchedules(schedules.map(schedule =>
-          schedule.id === editingSchedule.id
-            ? {
-                ...schedule,
-                title: newSchedule.title,
-                description: newSchedule.description,
-                start: startDateTime,
-                end: endDateTime,
-                calendarId: newSchedule.calendarId,
-                isCompleted: newSchedule.isCompleted,
-                location: newSchedule.location
-              }
-            : schedule
-        ));
-        setEditingSchedule(null);
-      } else {
-        // 추가 모드: 새 스케줄 생성
-        setSchedules([
-          ...schedules,
-          {
-            id: Date.now().toString(),
+      try {
+        if (editingSchedule) {
+          // 편집 모드: 기존 스케줄 업데이트
+          const updatedSchedule = await schedulesApi.updateSchedule(editingSchedule.id, {
             title: newSchedule.title,
             description: newSchedule.description,
             start: startDateTime,
@@ -132,27 +114,54 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
             calendarId: newSchedule.calendarId,
             isCompleted: newSchedule.isCompleted,
             location: newSchedule.location
-          },
-        ]);
+          });
+          setSchedules(schedules.map(schedule =>
+            schedule.id === editingSchedule.id ? updatedSchedule : schedule
+          ));
+          setEditingSchedule(null);
+          toast.success('일정이 수정되었습니다.');
+        } else {
+          // 추가 모드: 새 스케줄 생성
+          const createdSchedule = await schedulesApi.createSchedule({
+            title: newSchedule.title,
+            description: newSchedule.description,
+            start: startDateTime,
+            end: endDateTime,
+            calendarId: newSchedule.calendarId,
+            isCompleted: newSchedule.isCompleted,
+            location: newSchedule.location
+          });
+          setSchedules([...schedules, createdSchedule]);
+          toast.success('일정이 추가되었습니다.');
+        }
+
+        setNewSchedule({
+          title: '',
+          description: '',
+          startDate: getTodayDate(),
+          startTime: getCurrentHour(),
+          endDate: getTodayDate(),
+          endTime: getCurrentHourPlus2(),
+          calendarId: 'local-calendar',
+          location: '',
+          isCompleted: false
+        });
+        setIsDialogOpen(false);
+      } catch (error: any) {
+        console.error('Failed to save schedule:', error);
+        toast.error(error.message || '일정 저장에 실패했습니다.');
       }
-      setNewSchedule({
-        title: '',
-        description: '',
-        startDate: getTodayDate(),
-        startTime: getCurrentHour(),
-        endDate: getTodayDate(),
-        endTime: getCurrentHourPlus2(),
-        calendarId: 'local-calendar',
-        location: '',
-        isCompleted: false
-      });
-      setIsDialogOpen(false);
     }
   };
 
   // 다이얼로그가 열릴 때 날짜와 시간을 최신으로 업데이트
   const handleOpenDialog = (date?: Date) => {
     setEditingSchedule(null);
+
+    // Find first 'Calendar' calendar, or fallback to first available calendar
+    const defaultCalendar = calendars.find(cal => cal.name === 'Calendar') || calendars[0];
+    const defaultCalendarId = defaultCalendar?.id || 'local-calendar';
+
     if (date) {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -167,7 +176,7 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
         startTime: getCurrentHour(),
         endDate: dateStr,
         endTime: getCurrentHourPlus2(),
-        calendarId: 'local-calendar',
+        calendarId: defaultCalendarId,
         location: '',
         isCompleted: false
       });
@@ -180,7 +189,7 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
         startTime: getCurrentHour(),
         endDate: getTodayDate(),
         endTime: getCurrentHourPlus2(),
-        calendarId: 'local-calendar',
+        calendarId: defaultCalendarId,
         location: '',
         isCompleted: false
       });

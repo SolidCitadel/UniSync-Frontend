@@ -163,7 +163,39 @@ export default function App() {
           ]);
           console.log('Fetched calendars:', fetchedCalendars);
           console.log('Fetched schedules:', fetchedSchedules);
-          setCalendars(fetchedCalendars);
+
+          // Merge backend calendars with default local calendars
+          // Only add default calendars if they don't exist in backend
+          const backendNames = fetchedCalendars.map(c => c.name.toLowerCase());
+
+          const defaultLocalCalendars: Calendar[] = [];
+
+          // Add 'Calendar' only if not in backend
+          if (!backendNames.includes('calendar')) {
+            defaultLocalCalendars.push({
+              id: 'local-calendar',
+              name: 'Calendar',
+              type: 'local',
+              color: '#84cc16',
+              isVisible: true,
+            });
+          }
+
+          // Add 'Google Calendar' only if not in backend
+          if (!backendNames.includes('google calendar')) {
+            defaultLocalCalendars.push({
+              id: 'google-calendar',
+              name: 'Google Calendar',
+              type: 'google',
+              color: '#2c7fff',
+              isVisible: true,
+            });
+          }
+
+          // Combine: default calendars first, then backend calendars
+          const allCalendars = [...defaultLocalCalendars, ...fetchedCalendars];
+
+          setCalendars(allCalendars);
           setSchedules(fetchedSchedules);
         } catch (error) {
           console.error('Failed to fetch calendars/schedules:', error);

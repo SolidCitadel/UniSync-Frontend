@@ -3,6 +3,8 @@ import apiClient from './client';
 import type { Schedule, Task } from '@/types';
 import { store, generateId } from '@/mocks/mockStore';
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Backend ScheduleResponse type
 interface ScheduleResponse {
   scheduleId: number;
@@ -62,24 +64,28 @@ export const schedulesApi = {
 
   /**
    * Create a new schedule
-   * TODO: Replace with axios.post('/api/schedules', scheduleData)
    */
   async createSchedule(scheduleData: Omit<Schedule, 'id'>): Promise<Schedule> {
-    await delay(400);
+    try {
+      // Convert frontend Schedule to backend ScheduleRequest format
+      const requestBody = {
+        title: scheduleData.title,
+        description: scheduleData.description || null,
+        location: scheduleData.location || null,
+        startTime: scheduleData.start.toISOString().slice(0, 19), // "2025-11-30T10:00:00"
+        endTime: scheduleData.end.toISOString().slice(0, 19),
+        isAllDay: false,
+        categoryId: parseInt(scheduleData.calendarId),
+        groupId: null,
+        recurrenceRule: null,
+      };
 
-    // Validate that calendar is not E-Campus (read-only)
-    const calendar = store.calendars.find((c) => c.id === scheduleData.calendarId);
-    if (calendar?.type === 'ecampus') {
-      throw new Error('E-Campus 캘린더에는 직접 일정을 추가할 수 없습니다.');
+      const response = await apiClient.post<ScheduleResponse>('/v1/schedules', requestBody);
+      return mapScheduleResponseToSchedule(response.data);
+    } catch (error) {
+      console.error('[schedulesApi.createSchedule] Error creating schedule:', error);
+      throw error;
     }
-
-    const newSchedule: Schedule = {
-      ...scheduleData,
-      id: generateId(),
-    };
-
-    store.schedules.push(newSchedule);
-    return newSchedule;
   },
 
   /**
