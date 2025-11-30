@@ -27,7 +27,7 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
     return calendar?.isVisible ?? true;
   });
 
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1)); // November 2025
+  const [currentDate, setCurrentDate] = useState(new Date()); // Start with current month
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
@@ -59,6 +59,12 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
     return `${hours}:00`;
   };
 
+  // Find first 'Calendar' calendar, or fallback to first available calendar
+  const getDefaultCalendarId = () => {
+    const defaultCalendar = calendars.find(cal => cal.name === 'Calendar') || calendars[0];
+    return defaultCalendar?.id || '';
+  };
+
   const [newSchedule, setNewSchedule] = useState({
     title: '',
     description: '',
@@ -66,7 +72,7 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
     startTime: getCurrentHour(),
     endDate: getTodayDate(),
     endTime: getCurrentHourPlus2(),
-    calendarId: 'local-calendar',
+    calendarId: getDefaultCalendarId(),
     location: '',
     isCompleted: false
   });

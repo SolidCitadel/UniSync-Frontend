@@ -27,12 +27,38 @@ interface ScheduleResponse {
 
 // Convert backend ScheduleResponse to frontend Schedule type
 const mapScheduleResponseToSchedule = (response: ScheduleResponse): Schedule => {
+  // Parse backend LocalDateTime as local time (not UTC)
+  // Backend sends: "2025-12-02T20:00:00" or "2025-12-02 20:00:00"
+  // We treat it as local time (KST), not UTC
+  const parseLocalDateTime = (dateTimeStr: string): Date => {
+    if (!dateTimeStr) {
+      return new Date();
+    }
+
+    // Normalize: replace space with 'T' and remove microseconds
+    let normalized = dateTimeStr.replace(' ', 'T');
+
+    // Remove microseconds if present: "2025-12-02T20:00:00.000000" -> "2025-12-02T20:00:00"
+    if (normalized.includes('.')) {
+      normalized = normalized.split('.')[0];
+    }
+
+    // Remove timezone suffix only if present (Z at end, or +/-HH:MM after time)
+    // Match: "2025-12-02T20:00:00Z" or "2025-12-02T20:00:00+09:00"
+    // But preserve: "2025-12-02T20:00:00" (no timezone)
+    const tzPattern = /([+-]\d{2}:\d{2}|Z)$/;
+    const withoutTz = normalized.replace(tzPattern, '');
+
+    // Parse as local time
+    return new Date(withoutTz);
+  };
+
   return {
     id: response.scheduleId.toString(),
     title: response.title,
     description: response.description || '',
-    start: new Date(response.startTime),
-    end: new Date(response.endTime),
+    start: parseLocalDateTime(response.startTime),
+    end: parseLocalDateTime(response.endTime),
     location: response.location || undefined,
     isCompleted: response.status === 'DONE',
     calendarId: response.categoryId.toString(),
@@ -67,13 +93,24 @@ export const schedulesApi = {
    */
   async createSchedule(scheduleData: Omit<Schedule, 'id'>): Promise<Schedule> {
     try {
+      // Helper function to format date as local time (not UTC)
+      const formatLocalDateTime = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+      };
+
       // Convert frontend Schedule to backend ScheduleRequest format
       const requestBody = {
         title: scheduleData.title,
         description: scheduleData.description || null,
         location: scheduleData.location || null,
-        startTime: scheduleData.start.toISOString().slice(0, 19), // "2025-11-30T10:00:00"
-        endTime: scheduleData.end.toISOString().slice(0, 19),
+        startTime: formatLocalDateTime(scheduleData.start), // Local time, not UTC
+        endTime: formatLocalDateTime(scheduleData.end),
         isAllDay: false,
         categoryId: parseInt(scheduleData.calendarId),
         groupId: null,
