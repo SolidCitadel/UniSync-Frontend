@@ -21,6 +21,7 @@ import LoginDialog from './components/LoginDialog';
 import { authApi } from './api/authApi';
 import { schedulesApi } from './api/schedulesApi';
 import { calendarsApi } from './api/calendarsApi';
+import { tasksApi } from './api/tasksApi';
 
 // Types
 import type {
@@ -151,26 +152,43 @@ export default function App() {
     checkAuthStatus();
   }, []);
 
-  // Fetch calendars and schedules when user logs in
+  // Fetch calendars, schedules, and tasks when user logs in
   useEffect(() => {
     const fetchData = async () => {
       if (isLoggedIn) {
         try {
-          console.log('Fetching calendars and schedules...');
-          const [fetchedCalendars, fetchedSchedules] = await Promise.all([
-            calendarsApi.listCalendars(),
+          console.log('Fetching calendars, schedules, and tasks...');
+          let fetchedCalendars = await calendarsApi.listCalendars();
+
+          // If no calendars exist, create a default one
+          if (!fetchedCalendars || fetchedCalendars.length === 0) {
+            console.log('No calendars found. Creating default calendar...');
+            const defaultCalendar = await calendarsApi.createCalendar({
+              name: 'Calendar',
+              color: '#84cc16',
+              icon: null,
+            });
+            fetchedCalendars = [defaultCalendar];
+            toast.success('기본 캘린더가 생성되었습니다.');
+          }
+
+          const [fetchedSchedules, fetchedTasks] = await Promise.all([
             schedulesApi.listSchedules(),
+            tasksApi.listTasks(),
           ]);
+
           console.log('Fetched calendars:', fetchedCalendars);
           console.log('Fetched schedules:', fetchedSchedules);
+          console.log('Fetched tasks:', fetchedTasks);
 
           // Use only backend calendars (no fake local-calendar IDs)
           // Backend should have Calendar, Google Calendar, and Canvas categories
           setCalendars(fetchedCalendars);
           setSchedules(fetchedSchedules);
+          setTasks(fetchedTasks);
         } catch (error) {
-          console.error('Failed to fetch calendars/schedules:', error);
-          toast.error('일정을 불러오는데 실패했습니다.');
+          console.error('Failed to fetch calendars/schedules/tasks:', error);
+          toast.error('데이터를 불러오는데 실패했습니다.');
         }
       }
     };

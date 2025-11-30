@@ -12,16 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  startDate: Date;
-  endDate: Date;
-  status: 'todo' | 'progress' | 'done';
-  parentTaskId?: string;
-}
+import { tasksApi } from '@/api/tasksApi';
+import { toast } from 'sonner';
+import type { Task, TaskStatus } from '@/types';
 
 interface KanbanBoardProps {
   tasks: Task[];
@@ -66,30 +59,47 @@ export default function KanbanBoard({ tasks, setTasks }: KanbanBoardProps) {
     { id: 'done' as const, title: 'Done', color: 'border-t-green-500' },
   ];
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (newTask.title.trim()) {
-      setTasks([
-        ...tasks,
-        {
-          id: Date.now().toString(),
+      try {
+        const createdTask = await tasksApi.createTaskFromKanban({
           title: newTask.title,
           description: newTask.description,
           startDate: new Date(newTask.startDate),
           endDate: new Date(newTask.endDate),
           status: newTask.status,
-        },
-      ]);
-      setNewTask({ title: '', description: '', status: 'todo', ...getDefaultDates() });
-      setIsDialogOpen(false);
+        });
+        setTasks([...tasks, createdTask]);
+        setNewTask({ title: '', description: '', status: 'todo', ...getDefaultDates() });
+        setIsDialogOpen(false);
+        toast.success('작업이 추가되었습니다.');
+      } catch (error) {
+        console.error('Failed to create task:', error);
+        toast.error('작업 추가에 실패했습니다.');
+      }
     }
   };
 
-  const handleDeleteTask = (id: string) => {
-    setTasks(tasks.filter((task) => task.id !== id));
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await tasksApi.deleteTask(id);
+      setTasks(tasks.filter((task) => task.id !== id));
+      toast.success('작업이 삭제되었습니다.');
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      toast.error('작업 삭제에 실패했습니다.');
+    }
   };
 
-  const handleMoveTask = (taskId: string, newStatus: Task['status']) => {
-    setTasks(tasks.map((task) => (task.id === taskId ? { ...task, status: newStatus } : task)));
+  const handleMoveTask = async (taskId: string, newStatus: TaskStatus) => {
+    try {
+      const updatedTask = await tasksApi.updateTaskStatus(taskId, newStatus);
+      setTasks(tasks.map((task) => (task.id === taskId ? updatedTask : task)));
+      toast.success('작업 상태가 변경되었습니다.');
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+      toast.error('작업 상태 변경에 실패했습니다.');
+    }
   };
 
   return (
@@ -132,7 +142,7 @@ export default function KanbanBoard({ tasks, setTasks }: KanbanBoardProps) {
                   id="status"
                   className="w-full px-3 py-2 border border-slate-300 rounded-md"
                   value={newTask.status}
-                  onChange={(e) => setNewTask({ ...newTask, status: e.target.value as Task['status'] })}
+                  onChange={(e) => setNewTask({ ...newTask, status: e.target.value as TaskStatus })}
                 >
                   <option value="todo">To Do</option>
                   <option value="progress">In Progress</option>

@@ -11,16 +11,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  startDate: Date;
-  endDate: Date;
-  status: 'todo' | 'progress' | 'done';
-  parentTaskId?: string;
-}
+import { tasksApi } from '@/api/tasksApi';
+import { toast } from 'sonner';
+import type { Task } from '@/types';
 
 interface GanttChartProps {
   tasks: Task[];
@@ -165,82 +158,124 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
     });
   };
 
-  const toggleTaskComplete = (taskId: string) => {
+  const toggleTaskComplete = async (taskId: string) => {
     const targetTask = tasks.find(t => t.id === taskId);
     if (!targetTask) return;
 
     const newStatus = targetTask.status === 'done' ? 'todo' : 'done';
 
-    // Parent task인 경우 모든 subtask도 함께 완료/취소
-    if (!targetTask.parentTaskId) {
-      setTasks(tasks.map(task => {
-        // Parent task 자체 업데이트
-        if (task.id === taskId) {
-          return { ...task, status: newStatus };
-        }
-        // 해당 parent의 모든 subtask도 업데이트
-        if (task.parentTaskId === taskId) {
-          return { ...task, status: newStatus };
-        }
-        return task;
-      }));
-    } else {
-      // Subtask인 경우 해당 task만 업데이트
-      setTasks(tasks.map(task =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      ));
+    try {
+      // Parent task인 경우 모든 subtask도 함께 완료/취소
+      if (!targetTask.parentTaskId) {
+        // Update parent task
+        await tasksApi.updateTaskStatus(taskId, newStatus);
+
+        // Update all subtasks
+        const subtasks = getSubtasks(taskId);
+        await Promise.all(
+          subtasks.map(subtask => tasksApi.updateTaskStatus(subtask.id, newStatus))
+        );
+
+        setTasks(tasks.map(task => {
+          // Parent task 자체 업데이트
+          if (task.id === taskId) {
+            return { ...task, status: newStatus };
+          }
+          // 해당 parent의 모든 subtask도 업데이트
+          if (task.parentTaskId === taskId) {
+            return { ...task, status: newStatus };
+          }
+          return task;
+        }));
+      } else {
+        // Subtask인 경우 해당 task만 업데이트
+        await tasksApi.updateTaskStatus(taskId, newStatus);
+        setTasks(tasks.map(task =>
+          task.id === taskId ? { ...task, status: newStatus } : task
+        ));
+      }
+      toast.success(newStatus === 'done' ? '작업이 완료되었습니다.' : '작업 완료가 취소되었습니다.');
+    } catch (error) {
+      console.error('Failed to toggle task status:', error);
+      toast.error('작업 상태 변경에 실패했습니다.');
     }
   };
 
-  const handleAddProject = () => {
+  const handleAddProject = async () => {
     if (newProject.title.trim() && newProject.startDate && newProject.endDate) {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        title: newProject.title,
-        description: newProject.description,
-        startDate: new Date(newProject.startDate),
-        endDate: new Date(newProject.endDate),
-        status: 'todo',
-      };
-      
-      setTasks([...tasks, newTask]);
-      setNewProject({ title: '', description: '', ...getDefaultDates() });
-      setIsProjectDialogOpen(false);
+      try {
+        const createdTask = await tasksApi.createTaskFromGantt({
+          title: newProject.title,
+          description: newProject.description,
+          startDate: new Date(newProject.startDate),
+          endDate: new Date(newProject.endDate),
+          status: 'todo',
+          parentTaskId: null,
+        });
+
+        setTasks([...tasks, createdTask]);
+        setNewProject({ title: '', description: '', ...getDefaultDates() });
+        setIsProjectDialogOpen(false);
+        toast.success('프로젝트가 추가되었습니다.');
+      } catch (error) {
+        console.error('Failed to create project:', error);
+        toast.error('프로젝트 추가에 실패했습니다.');
+      }
     }
   };
 
-  const handleAddSubTask = () => {
+  const handleAddSubTask = async () => {
     if (
       selectedProjectId &&
       newSubTask.title.trim() &&
       newSubTask.startDate &&
       newSubTask.endDate
     ) {
-      const newTask: Task = {
-        id: `${selectedProjectId}-${Date.now()}`,
-        title: newSubTask.title,
-        description: newSubTask.description,
-        startDate: new Date(newSubTask.startDate),
-        endDate: new Date(newSubTask.endDate),
-        status: 'todo',
-        parentTaskId: selectedProjectId,
-      };
+      try {
+        const createdTask = await tasksApi.createSubtask(selectedProjectId, {
+          title: newSubTask.title,
+          description: newSubTask.description,
+          startDate: new Date(newSubTask.startDate),
+          endDate: new Date(newSubTask.endDate),
+          status: 'todo',
+        });
 
-      setTasks([...tasks, newTask]);
-      setNewSubTask({ title: '', description: '', ...getDefaultDates() });
-      setIsSubTaskDialogOpen(false);
+        setTasks([...tasks, createdTask]);
+        setNewSubTask({ title: '', description: '', ...getDefaultDates() });
+        setIsSubTaskDialogOpen(false);
+        toast.success('서브태스크가 추가되었습니다.');
+      } catch (error) {
+        console.error('Failed to create subtask:', error);
+        toast.error('서브태스크 추가에 실패했습니다.');
+      }
     }
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    // Parent task를 삭제하면 모든 subtask도 삭제
-    const subtasks = getSubtasks(taskId);
-    const subtaskIds = subtasks.map(st => st.id);
-    setTasks(tasks.filter(t => t.id !== taskId && !subtaskIds.includes(t.id)));
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      // Backend will handle deleting all subtasks
+      await tasksApi.deleteTask(taskId);
+
+      // Parent task를 삭제하면 모든 subtask도 삭제
+      const subtasks = getSubtasks(taskId);
+      const subtaskIds = subtasks.map(st => st.id);
+      setTasks(tasks.filter(t => t.id !== taskId && !subtaskIds.includes(t.id)));
+      toast.success('프로젝트가 삭제되었습니다.');
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      toast.error('프로젝트 삭제에 실패했습니다.');
+    }
   };
 
-  const handleDeleteSubTask = (taskId: string) => {
-    setTasks(tasks.filter(t => t.id !== taskId));
+  const handleDeleteSubTask = async (taskId: string) => {
+    try {
+      await tasksApi.deleteTask(taskId);
+      setTasks(tasks.filter(t => t.id !== taskId));
+      toast.success('서브태스크가 삭제되었습니다.');
+    } catch (error) {
+      console.error('Failed to delete subtask:', error);
+      toast.error('서브태스크 삭제에 실패했습니다.');
+    }
   };
 
   const getBarPosition = (startDate: Date, endDate: Date) => {
