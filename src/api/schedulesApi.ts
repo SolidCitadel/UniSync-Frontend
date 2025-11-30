@@ -1,20 +1,54 @@
 // Schedules API
-// Currently uses mock in-memory storage
-// TODO: Replace with real axios-based HTTP calls to backend
-
+import apiClient from './client';
 import type { Schedule, Task } from '@/types';
 import { store, generateId } from '@/mocks/mockStore';
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Backend ScheduleResponse type
+interface ScheduleResponse {
+  scheduleId: number;
+  cognitoSub: string;
+  groupId: number | null;
+  categoryId: number;
+  title: string;
+  description: string | null;
+  location: string | null;
+  startTime: string; // ISO 8601 format
+  endTime: string; // ISO 8601 format
+  isAllDay: boolean;
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CANCELED';
+  recurrenceRule: string | null;
+  source: 'USER' | 'CANVAS' | 'GOOGLE';
+  sourceId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Convert backend ScheduleResponse to frontend Schedule type
+const mapScheduleResponseToSchedule = (response: ScheduleResponse): Schedule => {
+  return {
+    id: response.scheduleId.toString(),
+    title: response.title,
+    description: response.description || '',
+    start: new Date(response.startTime),
+    end: new Date(response.endTime),
+    location: response.location || undefined,
+    isCompleted: response.status === 'DONE',
+    calendarId: response.categoryId.toString(),
+  };
+};
 
 export const schedulesApi = {
   /**
    * Get all schedules
-   * TODO: Replace with axios.get('/api/schedules')
    */
   async listSchedules(): Promise<Schedule[]> {
-    await delay(300);
-    return store.schedules;
+    try {
+      const response = await apiClient.get<ScheduleResponse[]>('/v1/schedules');
+      return response.data.map(mapScheduleResponseToSchedule);
+    } catch (error) {
+      console.error('[schedulesApi.listSchedules] Error fetching schedules:', error);
+      throw error;
+    }
   },
 
   /**

@@ -19,6 +19,8 @@ import LoginDialog from './components/LoginDialog';
 
 // API
 import { authApi } from './api/authApi';
+import { schedulesApi } from './api/schedulesApi';
+import { calendarsApi } from './api/calendarsApi';
 
 // Types
 import type {
@@ -148,6 +150,30 @@ export default function App() {
 
     checkAuthStatus();
   }, []);
+
+  // Fetch calendars and schedules when user logs in
+  useEffect(() => {
+    const fetchData = async () => {
+      if (isLoggedIn) {
+        try {
+          console.log('Fetching calendars and schedules...');
+          const [fetchedCalendars, fetchedSchedules] = await Promise.all([
+            calendarsApi.listCalendars(),
+            schedulesApi.listSchedules(),
+          ]);
+          console.log('Fetched calendars:', fetchedCalendars);
+          console.log('Fetched schedules:', fetchedSchedules);
+          setCalendars(fetchedCalendars);
+          setSchedules(fetchedSchedules);
+        } catch (error) {
+          console.error('Failed to fetch calendars/schedules:', error);
+          toast.error('일정을 불러오는데 실패했습니다.');
+        }
+      }
+    };
+
+    fetchData();
+  }, [isLoggedIn]);
 
   const toggleCalendarVisibility = (calendarId: string) => {
     setCalendars(prev =>

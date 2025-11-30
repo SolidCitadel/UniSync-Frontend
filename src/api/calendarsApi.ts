@@ -1,20 +1,52 @@
 // Calendars API
-// Currently uses mock in-memory storage
-// TODO: Replace with real axios-based HTTP calls to backend
-
-import type { Calendar } from '@/types';
+import apiClient from './client';
+import type { Calendar, CalendarType } from '@/types';
 import { store } from '@/mocks/mockStore';
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Backend CategoryResponse type
+interface CategoryResponse {
+  categoryId: number;
+  cognitoSub: string;
+  groupId: number | null;
+  name: string;
+  color: string;
+  icon: string | null;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Convert backend CategoryResponse to frontend Calendar type
+const mapCategoryResponseToCalendar = (response: CategoryResponse): Calendar => {
+  // Determine calendar type based on category name
+  let type: CalendarType = 'local';
+  if (response.name === 'Canvas') {
+    type = 'ecampus';
+  } else if (response.name.includes('Google')) {
+    type = 'google';
+  }
+
+  return {
+    id: response.categoryId.toString(),
+    name: response.name,
+    type: type,
+    color: response.color,
+    isVisible: true, // Default to visible
+  };
+};
 
 export const calendarsApi = {
   /**
    * Get all calendars for current user
-   * TODO: Replace with axios.get('/api/calendars')
    */
   async listCalendars(): Promise<Calendar[]> {
-    await delay(300);
-    return store.calendars;
+    try {
+      const response = await apiClient.get<CategoryResponse[]>('/v1/categories');
+      return response.data.map(mapCategoryResponseToCalendar);
+    } catch (error) {
+      console.error('[calendarsApi.listCalendars] Error fetching calendars:', error);
+      throw error;
+    }
   },
 
   /**
