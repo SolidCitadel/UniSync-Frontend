@@ -500,6 +500,7 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
                 value={newSchedule.description}
                 onChange={(e) => setNewSchedule({ ...newSchedule, description: e.target.value })}
                 placeholder="일정 설명을 입력하세요"
+                className="min-h-[120px]"
               />
             </div>
 
