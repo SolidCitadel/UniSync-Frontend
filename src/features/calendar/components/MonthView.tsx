@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { toast } from 'sonner';
 import { schedulesApi } from '@/api/schedulesApi';
+import { stripHtml } from '@/lib/htmlUtils';
 import type { Schedule, Task, Calendar } from '@/types';
 
 interface MonthCalendarProps {
@@ -215,7 +216,7 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
     setEditingSchedule(schedule);
     setNewSchedule({
       title: schedule.title,
-      description: schedule.description,
+      description: stripHtml(schedule.description),
       startDate: startDateStr,
       startTime: startTimeStr,
       endDate: endDateStr,
