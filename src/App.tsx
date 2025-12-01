@@ -131,10 +131,17 @@ export default function App() {
 
       if (token && userData) {
         try {
+          // Parse stored user data which includes ecampusToken
+          const storedUser = JSON.parse(userData);
+
           // Verify token is still valid
           const currentUser = await authApi.getCurrentUser();
           if (currentUser) {
-            setUser(currentUser);
+            // Merge stored data (includes ecampusToken) with current user data
+            setUser({
+              ...currentUser,
+              ecampusToken: storedUser.ecampusToken || currentUser.ecampusToken,
+            });
             setIsLoggedIn(true);
           } else {
             // Token invalid, clear storage
