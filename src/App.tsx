@@ -166,7 +166,6 @@ export default function App() {
             const defaultCalendar = await calendarsApi.createCalendar({
               name: 'Calendar',
               color: '#84cc16',
-              icon: null,
             });
             fetchedCalendars = [defaultCalendar];
             toast.success('기본 캘린더가 생성되었습니다.');
@@ -232,6 +231,36 @@ export default function App() {
     }
   };
 
+  // Refresh calendars and schedules (for Canvas sync)
+  const refreshData = async () => {
+    try {
+      console.log('[App] Refreshing calendars and schedules...');
+      const [fetchedCalendars, fetchedSchedules] = await Promise.all([
+        calendarsApi.listCalendars(),
+        schedulesApi.listSchedules(),
+      ]);
+
+      console.log('[App] Fetched calendars:', fetchedCalendars);
+      console.log('[App] Fetched schedules:', fetchedSchedules);
+      console.log('[App] Schedule count:', fetchedSchedules.length);
+
+      // Show Canvas categories if they exist (can be multiple courses)
+      const canvasCalendars = fetchedCalendars.filter(cal => cal.type === 'ecampus');
+      if (canvasCalendars.length > 0) {
+        console.log('[App] Canvas calendars found:', canvasCalendars.length, canvasCalendars);
+      } else {
+        console.log('[App] No Canvas calendars found');
+      }
+
+      setCalendars(fetchedCalendars);
+      setSchedules(fetchedSchedules);
+      console.log('[App] Data refreshed successfully');
+    } catch (error) {
+      console.error('[App] Failed to refresh data:', error);
+      toast.error('데이터 새로고침에 실패했습니다.');
+    }
+  };
+
   const navigationItems = [
     { id: 'dashboard' as Page, label: '일정', icon: CalendarIcon },
     { id: 'groups' as Page, label: '그룹', icon: Users },
@@ -251,7 +280,7 @@ export default function App() {
           />
         );
       case 'mypage':
-        return <MyPage user={user} onLogout={handleLogout} onUserUpdate={setUser} />;
+        return <MyPage user={user} onLogout={handleLogout} onUserUpdate={setUser} onDataRefresh={refreshData} />;
       case 'groups':
         return <GroupsPage schedules={schedules} setSchedules={setSchedules} />;
       case 'friends':

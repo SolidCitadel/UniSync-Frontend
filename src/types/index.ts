@@ -168,3 +168,25 @@ export interface KanbanColumn {
   title: string;
   tasks: Task[];
 }
+
+// Canvas/E-Campus Types
+export interface Course {
+  id: number;
+  canvasCourseId: number;
+  name: string;
+  courseCode: string;
+  description: string | null;
+  startAt: string;
+  endAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Enrollment {
+  id: number;
+  cognitoSub: string;
+  course: Course;
+  isSyncLeader: boolean;
+  isSyncEnabled: boolean;
+  enrolledAt: string;
+}

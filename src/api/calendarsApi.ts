@@ -14,18 +14,23 @@ interface CategoryResponse {
   color: string;
   icon: string | null;
   isDefault: boolean;
+  sourceType: string | null; // "USER", "CANVAS", "GOOGLE"
+  sourceId: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 // Convert backend CategoryResponse to frontend Calendar type
 const mapCategoryResponseToCalendar = (response: CategoryResponse): Calendar => {
-  // Determine calendar type based on category name
+  // Determine calendar type based on sourceType field
   let type: CalendarType = 'local';
-  if (response.name === 'Canvas') {
+
+  if (response.sourceType === 'CANVAS') {
     type = 'ecampus';
-  } else if (response.name.includes('Google')) {
+  } else if (response.sourceType === 'GOOGLE') {
     type = 'google';
+  } else if (response.sourceType === 'USER' || response.sourceType === null) {
+    type = 'local';
   }
 
   return {

@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Mail, Lock, LogOut, Camera, RefreshCw } from 'lucide-react';
+import { Mail, Lock, LogOut, Camera, RefreshCw, BookOpen, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { authApi } from '@/api/authApi';
 import { ecampusApi } from '@/api/ecampusApi';
-import type { User } from '@/types';
+import { enrollmentsApi } from '@/api/enrollmentsApi';
+import type { User, Enrollment } from '@/types';
 
 interface MyPageProps {
   user: User | null;
   onLogout: () => void;
   onUserUpdate: (user: User) => void;
+  onDataRefresh: () => Promise<void>;
 }
 
-export default function MyPage({ user, onLogout, onUserUpdate }: MyPageProps) {
+export default function MyPage({ user, onLogout, onUserUpdate, onDataRefresh }: MyPageProps) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -25,7 +28,10 @@ export default function MyPage({ user, onLogout, onUserUpdate }: MyPageProps) {
   });
 
   const [ecampusToken, setEcampusToken] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncingCourses, setIsSyncingCourses] = useState(false);
+  const [isSyncingAssignments, setIsSyncingAssignments] = useState(false);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
 
   // Initialize user data from props
   useEffect(() => {
@@ -100,20 +106,119 @@ export default function MyPage({ user, onLogout, onUserUpdate }: MyPageProps) {
     }
   };
 
-  const handleSyncCanvas = async () => {
+  // Load enrollments when user has Canvas token
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      if (user?.ecampusToken) {
+        setIsLoadingEnrollments(true);
+        try {
+          const fetchedEnrollments = await enrollmentsApi.listEnrollments();
+          setEnrollments(fetchedEnrollments);
+          console.log('[MyPage] Loaded enrollments:', fetchedEnrollments);
+        } catch (error: any) {
+          console.error('[MyPage] Failed to load enrollments:', error);
+          // Don't show error toast on initial load, only if user has token
+        } finally {
+          setIsLoadingEnrollments(false);
+        }
+      }
+    };
+
+    loadEnrollments();
+  }, [user?.ecampusToken]);
+
+  // Step 1: Sync courses from Canvas
+  const handleSyncCourses = async () => {
     if (!user?.ecampusToken) {
       toast.error('먼저 Canvas Token을 연동해주세요.');
       return;
     }
 
-    setIsSyncing(true);
+    console.log('[MyPage] Starting course sync...');
+    setIsSyncingCourses(true);
     try {
-      const response = await ecampusApi.syncCanvas();
-      toast.success(response.message);
+      const response = await ecampusApi.syncCanvas('courses');
+      console.log('[MyPage] Course sync response:', response);
+
+      if (response.coursesCount === 0) {
+        toast.warning('동기화는 완료되었으나 가져온 과목이 없습니다. Canvas 계정에 과목이 있는지 확인해주세요.');
+      } else {
+        toast.success(response.message);
+
+        // Reload enrollments to show newly synced courses
+        const fetchedEnrollments = await enrollmentsApi.listEnrollments();
+        setEnrollments(fetchedEnrollments);
+        console.log('[MyPage] Reloaded enrollments after course sync:', fetchedEnrollments);
+      }
     } catch (error: any) {
-      toast.error(error.message || 'Canvas 동기화에 실패했습니다.');
+      console.error('[MyPage] Course sync error:', error);
+      toast.error(error.message || '과목 동기화에 실패했습니다.');
     } finally {
-      setIsSyncing(false);
+      setIsSyncingCourses(false);
+    }
+  };
+
+  // Step 2: Sync assignments for enabled courses
+  const handleSyncAssignments = async () => {
+    if (!user?.ecampusToken) {
+      toast.error('먼저 Canvas Token을 연동해주세요.');
+      return;
+    }
+
+    // Check if there are any enabled enrollments
+    const enabledEnrollments = enrollments.filter(e => e.isSyncEnabled);
+    if (enabledEnrollments.length === 0) {
+      toast.warning('동기화할 과목이 없습니다. 먼저 과목을 활성화해주세요.');
+      return;
+    }
+
+    console.log('[MyPage] Starting assignment sync for enabled courses...');
+    setIsSyncingAssignments(true);
+    try {
+      const response = await ecampusApi.syncCanvas('assignments');
+      console.log('[MyPage] Assignment sync response:', response);
+
+      if (response.assignmentsCount === 0) {
+        toast.warning('동기화는 완료되었으나 가져온 과제가 없습니다.');
+      } else {
+        toast.success(response.message);
+
+        // Refresh calendars and schedules after sync
+        console.log('[MyPage] Refreshing calendars and schedules...');
+        await onDataRefresh();
+        console.log('[MyPage] Data refresh complete');
+      }
+    } catch (error: any) {
+      console.error('[MyPage] Assignment sync error:', error);
+      toast.error(error.message || '과제 동기화에 실패했습니다.');
+    } finally {
+      setIsSyncingAssignments(false);
+    }
+  };
+
+  // Toggle enrollment sync status
+  const handleToggleEnrollment = async (enrollmentId: number, currentStatus: boolean) => {
+    try {
+      const newStatus = !currentStatus;
+      console.log(`[MyPage] Toggling enrollment ${enrollmentId} to ${newStatus}`);
+
+      const updatedEnrollment = await enrollmentsApi.toggleEnrollmentSync(enrollmentId, newStatus);
+
+      // Update local state
+      setEnrollments(prev =>
+        prev.map(e => (e.id === enrollmentId ? updatedEnrollment : e))
+      );
+
+      if (newStatus) {
+        toast.success('과목이 활성화되었습니다.');
+      } else {
+        toast.success('과목이 비활성화되었습니다. 해당 과목의 모든 일정이 삭제됩니다.');
+        // Refresh data to reflect deleted schedules
+        await onDataRefresh();
+      }
+    } catch (error: any) {
+      console.error('[MyPage] Toggle enrollment error:', error);
+      toast.error(error.message || '과목 설정 변경에 실패했습니다.');
     }
   };
 
@@ -313,20 +418,9 @@ export default function MyPage({ user, onLogout, onUserUpdate }: MyPageProps) {
               </div>
               <div className="flex gap-2">
                 {user.ecampusToken && (
-                  <>
-                    <Button
-                      onClick={handleSyncCanvas}
-                      disabled={isSyncing}
-                      size="sm"
-                      className="bg-blue-500 hover:bg-blue-600"
-                    >
-                      <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                      {isSyncing ? '동기화 중...' : '동기화'}
-                    </Button>
-                    <Button variant="outline" onClick={handleDisconnectEcampus} size="sm">
-                      연동 해제
-                    </Button>
-                  </>
+                  <Button variant="outline" onClick={handleDisconnectEcampus} size="sm">
+                    연동 해제
+                  </Button>
                 )}
               </div>
             </div>
@@ -355,6 +449,98 @@ export default function MyPage({ user, onLogout, onUserUpdate }: MyPageProps) {
                       연동하기
                     </Button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2-Step Canvas Sync UI */}
+            {user.ecampusToken && (
+              <div className="space-y-4 mt-4 pt-4 border-t">
+                {/* Step 1: Sync Courses */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium">Step 1: 과목 동기화</span>
+                    </div>
+                    <Button
+                      onClick={handleSyncCourses}
+                      disabled={isSyncingCourses}
+                      size="sm"
+                      variant="outline"
+                      className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCourses ? 'animate-spin' : ''}`} />
+                      {isSyncingCourses ? '동기화 중...' : '과목 불러오기'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Canvas에서 수강 중인 과목 목록을 불러옵니다.
+                  </p>
+                </div>
+
+                {/* Enrollments List */}
+                {isLoadingEnrollments ? (
+                  <div className="py-4 text-center text-sm text-gray-500">
+                    과목 목록을 불러오는 중...
+                  </div>
+                ) : enrollments.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">수강 과목 목록 ({enrollments.length}개)</p>
+                    <div className="max-h-48 overflow-y-auto space-y-2 p-2 bg-gray-50 rounded-lg">
+                      {enrollments.map((enrollment) => (
+                        <label
+                          key={enrollment.id}
+                          className="flex items-center justify-between p-2 hover:bg-white rounded cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Checkbox
+                              checked={enrollment.isSyncEnabled}
+                              onCheckedChange={() => handleToggleEnrollment(enrollment.id, enrollment.isSyncEnabled)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{enrollment.course.name}</p>
+                              <p className="text-xs text-gray-500 truncate">{enrollment.course.courseCode}</p>
+                            </div>
+                          </div>
+                          {enrollment.isSyncLeader && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded ml-2 shrink-0">
+                              리더
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      체크된 과목의 과제만 동기화됩니다. 체크 해제 시 해당 과목의 모든 일정이 삭제됩니다.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="py-4 text-center text-sm text-gray-500">
+                    과목 목록이 없습니다. 먼저 "과목 불러오기"를 클릭하세요.
+                  </div>
+                )}
+
+                {/* Step 2: Sync Assignments */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-green-600" />
+                      <span className="text-sm font-medium">Step 2: 과제 동기화</span>
+                    </div>
+                    <Button
+                      onClick={handleSyncAssignments}
+                      disabled={isSyncingAssignments || enrollments.filter(e => e.isSyncEnabled).length === 0}
+                      size="sm"
+                      className="bg-green-500 hover:bg-green-600"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingAssignments ? 'animate-spin' : ''}`} />
+                      {isSyncingAssignments ? '동기화 중...' : '과제 동기화'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    체크된 과목의 과제를 캘린더에 추가합니다.
+                  </p>
                 </div>
               </div>
             )}

@@ -17,7 +17,10 @@ export interface CanvasSyncResponse {
   message: string;
   coursesCount: number;
   assignmentsCount: number;
+  syncedAt?: string;
 }
+
+export type CanvasSyncMode = 'courses' | 'assignments';
 
 export const ecampusApi = {
   /**
@@ -116,24 +119,36 @@ export const ecampusApi = {
   },
 
   /**
-   * Sync Canvas assignments and courses to calendar
-   * 백엔드가 Canvas API를 호출하여 과제를 가져오고 자동으로 캘린더에 추가합니다.
+   * Sync Canvas data with 2-step process
+   * Step 1 (mode=courses): Sync courses only to create enrollments
+   * Step 2 (mode=assignments): Sync assignments for enabled courses only
    */
-  async syncCanvas(): Promise<CanvasSyncResponse> {
+  async syncCanvas(mode: CanvasSyncMode = 'assignments'): Promise<CanvasSyncResponse> {
     try {
-      console.log('[ecampusApi.syncCanvas] 동기화 요청 시작');
-      const response = await apiClient.post('/v1/integrations/canvas/sync');
+      console.log(`[ecampusApi.syncCanvas] 동기화 요청 시작 (mode: ${mode})`);
+      const response = await apiClient.post(`/v1/integrations/canvas/sync?mode=${mode}`);
 
       console.log('[ecampusApi.syncCanvas] 응답 받음:', response);
       console.log('[ecampusApi.syncCanvas] 응답 데이터:', response.data);
 
-      const { success, message, coursesCount, assignmentsCount } = response.data;
+      const { success, message, coursesCount, assignmentsCount, syncedAt } = response.data;
+
+      // Customize message based on mode
+      let resultMessage = message;
+      if (!message) {
+        if (mode === 'courses') {
+          resultMessage = `과목 동기화 완료: ${coursesCount || 0}개의 과목을 불러왔습니다.`;
+        } else {
+          resultMessage = `과제 동기화 완료: ${assignmentsCount || 0}개의 과제를 불러왔습니다.`;
+        }
+      }
 
       return {
         success: success !== false,
-        message: message || `동기화 완료: 과목 ${coursesCount || 0}개, 과제 ${assignmentsCount || 0}개`,
+        message: resultMessage,
         coursesCount: coursesCount || 0,
         assignmentsCount: assignmentsCount || 0,
+        syncedAt: syncedAt,
       };
     } catch (error: any) {
       console.error('[ecampusApi.syncCanvas] 에러 발생:', error);
