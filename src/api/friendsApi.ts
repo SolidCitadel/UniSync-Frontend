@@ -1,166 +1,181 @@
 // Friends API
-// Currently uses mock in-memory storage
-// TODO: Replace with real axios-based HTTP calls to backend
+import apiClient from './client';
+import type { Friend, FriendRequest } from '@/types';
 
-import type { Friend, FriendRequest, User } from '@/types';
-import { store, generateId } from '@/mocks/mockStore';
+// Backend response types
+interface UserSummaryResponse {
+  cognitoSub: string;
+  name: string;
+  email: string;
+  isFriend: boolean;
+  isPending: boolean;
+}
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+interface FriendshipResponse {
+  friendshipId: number;
+  friend: UserSummaryResponse;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED';
+  createdAt: string;
+}
+
+interface FriendRequestResponseBackend {
+  requestId: number;
+  fromUser: UserSummaryResponse;
+  createdAt: string;
+}
+
+interface MessageResponse {
+  message: string;
+}
+
+// Convert backend FriendshipResponse to frontend Friend type
+const mapFriendshipToFriend = (response: FriendshipResponse): Friend => {
+  return {
+    id: response.friend.cognitoSub,
+    name: response.friend.name,
+    email: response.friend.email,
+    profileImage: undefined, // Backend doesn't provide profile image yet
+    status: 'accepted', // We only list accepted friends
+  };
+};
+
+// Convert backend FriendRequestResponse to frontend FriendRequest type
+const mapFriendRequestResponse = (response: FriendRequestResponseBackend): FriendRequest => {
+  return {
+    id: response.requestId.toString(),
+    fromUserId: response.fromUser.cognitoSub,
+    fromUserName: response.fromUser.name,
+    fromUserEmail: response.fromUser.email,
+    toUserId: '', // Not provided in response, but not needed for display
+    status: 'pending',
+    createdAt: new Date(response.createdAt),
+  };
+};
 
 export const friendsApi = {
   /**
    * Get all friends for current user
-   * TODO: Replace with axios.get('/api/friends')
    */
   async listFriends(): Promise<Friend[]> {
-    await delay(300);
-    return store.friends.filter((f) => f.status === 'accepted');
+    try {
+      const response = await apiClient.get<FriendshipResponse[]>('/v1/friends');
+      return response.data.map(mapFriendshipToFriend);
+    } catch (error) {
+      console.error('[friendsApi.listFriends] Error fetching friends:', error);
+      throw error;
+    }
   },
 
   /**
-   * Send friend request by user ID or email
-   * TODO: Replace with axios.post('/api/friends/request', { userId or email })
+   * Search users by email or name
    */
-  async sendFriendRequest(userIdOrEmail: string): Promise<FriendRequest> {
-    await delay(400);
-
-    if (!store.currentUser) {
-      throw new Error('로그인이 필요합니다.');
+  async searchUsers(query: string, limit: number = 10): Promise<UserSummaryResponse[]> {
+    try {
+      const response = await apiClient.get<UserSummaryResponse[]>('/v1/friends/search', {
+        params: { query, limit },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[friendsApi.searchUsers] Error searching users:', error);
+      throw error;
     }
+  },
 
-    // Find target user
-    const targetUser = store.users.find(
-      (u) => u.id === userIdOrEmail || u.email === userIdOrEmail
-    );
+  /**
+   * Send friend request by user cognitoSub
+   */
+  async sendFriendRequest(friendCognitoSub: string): Promise<FriendRequest> {
+    try {
+      const response = await apiClient.post<FriendshipResponse>('/v1/friends/requests', {
+        friendCognitoSub,
+      });
 
-    if (!targetUser) {
-      throw new Error('사용자를 찾을 수 없습니다.');
+      // Convert response to FriendRequest format
+      return {
+        id: response.data.friendshipId.toString(),
+        fromUserId: '', // Not provided
+        toUserId: response.data.friend.cognitoSub,
+        status: 'pending',
+        createdAt: new Date(response.data.createdAt),
+      };
+    } catch (error) {
+      console.error('[friendsApi.sendFriendRequest] Error sending friend request:', error);
+      throw error;
     }
-
-    if (targetUser.id === store.currentUser.id) {
-      throw new Error('자기 자신에게는 친구 요청을 보낼 수 없습니다.');
-    }
-
-    // Check if already friends
-    const existingFriend = store.friends.find(
-      (f) => f.id === targetUser.id && f.status === 'accepted'
-    );
-    if (existingFriend) {
-      throw new Error('이미 친구입니다.');
-    }
-
-    // Check if request already exists
-    const existingRequest = store.friendRequests.find(
-      (r) =>
-        r.fromUserId === store.currentUser!.id &&
-        r.toUserId === targetUser.id &&
-        r.status === 'pending'
-    );
-    if (existingRequest) {
-      throw new Error('이미 친구 요청을 보냈습니다.');
-    }
-
-    const newRequest: FriendRequest = {
-      id: generateId(),
-      fromUserId: store.currentUser.id,
-      toUserId: targetUser.id,
-      status: 'pending',
-      createdAt: new Date(),
-    };
-
-    store.friendRequests.push(newRequest);
-
-    // Create notification for target user (spec 7.2)
-    // This will be handled by notificationsApi
-
-    return newRequest;
   },
 
   /**
    * Accept friend request
-   * TODO: Replace with axios.post(`/api/friends/requests/${requestId}/accept`)
    */
   async acceptFriendRequest(requestId: string): Promise<Friend> {
-    await delay(400);
+    try {
+      await apiClient.post<MessageResponse>(`/v1/friends/requests/${requestId}/accept`);
 
-    const request = store.friendRequests.find((r) => r.id === requestId);
-    if (!request) {
-      throw new Error('친구 요청을 찾을 수 없습니다.');
+      // After accepting, fetch updated friends list to get the new friend
+      const friends = await friendsApi.listFriends();
+
+      // Return the most recently added friend (last in the list)
+      // This is a workaround since the accept endpoint only returns a message
+      if (friends.length > 0) {
+        return friends[friends.length - 1];
+      }
+
+      // Fallback: create a dummy friend object
+      throw new Error('친구 목록 새로고침에 실패했습니다.');
+    } catch (error) {
+      console.error('[friendsApi.acceptFriendRequest] Error accepting friend request:', error);
+      throw error;
     }
-
-    if (request.toUserId !== store.currentUser?.id) {
-      throw new Error('이 요청을 수락할 권한이 없습니다.');
-    }
-
-    // Update request status
-    request.status = 'accepted';
-
-    // Add as friend
-    const fromUser = store.users.find((u) => u.id === request.fromUserId);
-    if (!fromUser) {
-      throw new Error('요청한 사용자를 찾을 수 없습니다.');
-    }
-
-    const newFriend: Friend = {
-      id: fromUser.id,
-      name: fromUser.name,
-      email: fromUser.email,
-      profileImage: fromUser.profileImage,
-      status: 'accepted',
-    };
-
-    store.friends.push(newFriend);
-
-    return newFriend;
   },
 
   /**
    * Reject friend request
-   * TODO: Replace with axios.post(`/api/friends/requests/${requestId}/reject`)
    */
   async rejectFriendRequest(requestId: string): Promise<void> {
-    await delay(300);
-
-    const request = store.friendRequests.find((r) => r.id === requestId);
-    if (!request) {
-      throw new Error('친구 요청을 찾을 수 없습니다.');
+    try {
+      await apiClient.post<MessageResponse>(`/v1/friends/requests/${requestId}/reject`);
+    } catch (error) {
+      console.error('[friendsApi.rejectFriendRequest] Error rejecting friend request:', error);
+      throw error;
     }
-
-    if (request.toUserId !== store.currentUser?.id) {
-      throw new Error('이 요청을 거절할 권한이 없습니다.');
-    }
-
-    request.status = 'rejected';
   },
 
   /**
    * Remove friend
-   * TODO: Replace with axios.delete(`/api/friends/${friendId}`)
    */
-  async removeFriend(friendId: string): Promise<void> {
-    await delay(300);
-
-    const friendIndex = store.friends.findIndex((f) => f.id === friendId);
-    if (friendIndex === -1) {
-      throw new Error('친구를 찾을 수 없습니다.');
+  async removeFriend(friendshipId: string): Promise<void> {
+    try {
+      await apiClient.delete<MessageResponse>(`/v1/friends/${friendshipId}`);
+    } catch (error) {
+      console.error('[friendsApi.removeFriend] Error removing friend:', error);
+      throw error;
     }
-
-    store.friends.splice(friendIndex, 1);
   },
 
   /**
    * Get pending friend requests (received)
-   * TODO: Replace with axios.get('/api/friends/requests/pending')
    */
   async getPendingRequests(): Promise<FriendRequest[]> {
-    await delay(300);
-
-    if (!store.currentUser) {
-      throw new Error('로그인이 필요합니다.');
+    try {
+      const response = await apiClient.get<FriendRequestResponseBackend[]>(
+        '/v1/friends/requests/pending'
+      );
+      return response.data.map(mapFriendRequestResponse);
+    } catch (error) {
+      console.error('[friendsApi.getPendingRequests] Error fetching pending requests:', error);
+      throw error;
     }
+  },
 
-    return store.friendRequests.filter(
-      (r) => r.toUserId === store.currentUser!.id && r.status === 'pending'
-    );
+  /**
+   * Block user
+   */
+  async blockUser(friendCognitoSub: string): Promise<void> {
+    try {
+      await apiClient.post<MessageResponse>(`/v1/friends/${friendCognitoSub}/block`);
+    } catch (error) {
+      console.error('[friendsApi.blockUser] Error blocking user:', error);
+      throw error;
+    }
   },
 };

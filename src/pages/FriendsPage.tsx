@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, UserPlus, UserMinus, Mail, MoreVertical } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,61 +13,107 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { friendsApi } from '@/api/friendsApi';
 import type { Friend, FriendRequest } from '@/types';
 
-const initialFriends: Friend[] = [
-  {
-    id: 'friend-1',
-    name: '김민수',
-    email: 'minsu.kim@example.com',
-    profileImage: undefined,
-    status: 'accepted',
-  },
-  {
-    id: 'friend-2',
-    name: '이지은',
-    email: 'jieun.lee@example.com',
-    profileImage: undefined,
-    status: 'accepted',
-  },
-  {
-    id: 'friend-3',
-    name: '박서준',
-    email: 'seojun.park@example.com',
-    profileImage: undefined,
-    status: 'accepted',
-  },
-];
-
 export default function FriendsPage() {
-  const [friends, setFriends] = useState<Friend[]>(initialFriends);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newFriendEmail, setNewFriendEmail] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleSendFriendRequest = () => {
-    if (!newFriendEmail.trim()) {
-      toast.error('이메일을 입력하세요');
+  // Load friends and friend requests on mount
+  useEffect(() => {
+    loadFriendsData();
+  }, []);
+
+  const loadFriendsData = async () => {
+    try {
+      setIsLoading(true);
+      const [friendsData, requestsData] = await Promise.all([
+        friendsApi.listFriends(),
+        friendsApi.getPendingRequests(),
+      ]);
+      setFriends(friendsData);
+      setFriendRequests(requestsData);
+    } catch (error: any) {
+      console.error('친구 데이터 로드 실패:', error);
+      toast.error(error.message || '친구 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSearchUsers = async () => {
+    if (!searchQuery.trim()) {
+      toast.error('검색어를 입력하세요');
       return;
     }
-    toast.success(`${newFriendEmail}에게 친구 요청을 보냈습니다.`);
-    setNewFriendEmail('');
-    setIsAddDialogOpen(false);
+
+    try {
+      setIsSearching(true);
+      const results = await friendsApi.searchUsers(searchQuery);
+      setSearchResults(results);
+      if (results.length === 0) {
+        toast.info('검색 결과가 없습니다.');
+      }
+    } catch (error: any) {
+      console.error('사용자 검색 실패:', error);
+      toast.error(error.message || '사용자 검색에 실패했습니다.');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
-  const handleAcceptRequest = (requestId: string) => {
-    setFriendRequests((prev) => prev.filter((r) => r.id !== requestId));
-    toast.success('친구 요청을 수락했습니다');
+  const handleSendFriendRequest = async (cognitoSub: string) => {
+    try {
+      await friendsApi.sendFriendRequest(cognitoSub);
+      toast.success('친구 요청을 보냈습니다.');
+      setSearchResults([]);
+      setSearchQuery('');
+      setIsAddDialogOpen(false);
+    } catch (error: any) {
+      console.error('친구 요청 전송 실패:', error);
+      toast.error(error.message || '친구 요청 전송에 실패했습니다.');
+    }
   };
 
-  const handleRejectRequest = (requestId: string) => {
-    setFriendRequests((prev) => prev.filter((r) => r.id !== requestId));
-    toast.success('친구 요청을 거절했습니다');
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      await friendsApi.acceptFriendRequest(requestId);
+      toast.success('친구 요청을 수락했습니다');
+      // Reload friends data to reflect changes
+      await loadFriendsData();
+    } catch (error: any) {
+      console.error('친구 요청 수락 실패:', error);
+      toast.error(error.message || '친구 요청 수락에 실패했습니다.');
+    }
   };
 
-  const handleRemoveFriend = (friendId: string) => {
-    setFriends((prev) => prev.filter((f) => f.id !== friendId));
-    toast.success('친구를 삭제했습니다');
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      await friendsApi.rejectFriendRequest(requestId);
+      toast.success('친구 요청을 거절했습니다');
+      setFriendRequests((prev) => prev.filter((r) => r.id !== requestId));
+    } catch (error: any) {
+      console.error('친구 요청 거절 실패:', error);
+      toast.error(error.message || '친구 요청 거절에 실패했습니다.');
+    }
+  };
+
+  const handleRemoveFriend = async (friendId: string) => {
+    try {
+      await friendsApi.removeFriend(friendId);
+      toast.success('친구를 삭제했습니다');
+      setFriends((prev) => prev.filter((f) => f.id !== friendId));
+    } catch (error: any) {
+      console.error('친구 삭제 실패:', error);
+      toast.error(error.message || '친구 삭제에 실패했습니다.');
+    }
   };
 
   return (
@@ -84,23 +130,57 @@ export default function FriendsPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>친구 추가</DialogTitle>
-              <DialogDescription>이메일로 친구를 추가합니다.</DialogDescription>
+              <DialogDescription>이메일 또는 이름으로 사용자를 검색합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="friend-email">친구 이메일</Label>
-                <Input
-                  id="friend-email"
-                  type="email"
-                  value={newFriendEmail}
-                  onChange={(e) => setNewFriendEmail(e.target.value)}
-                  placeholder="친구의 이메일을 입력하세요"
-                />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="search-query">검색</Label>
+                  <Input
+                    id="search-query"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                    placeholder="이메일 또는 이름으로 검색"
+                  />
+                </div>
               </div>
-              <Button onClick={handleSendFriendRequest} className="w-full">
-                <UserPlus className="w-4 h-4 mr-2" />
-                친구 요청 보내기
+              <Button onClick={handleSearchUsers} disabled={isSearching} className="w-full">
+                {isSearching ? '검색 중...' : '검색'}
               </Button>
+
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
+                  <Label>검색 결과</Label>
+                  {searchResults.map((user) => (
+                    <div
+                      key={user.cognitoSub}
+                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-white"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">{user.name}</p>
+                        <p className="text-sm text-slate-500">{user.email}</p>
+                      </div>
+                      {user.isFriend ? (
+                        <Button size="sm" variant="outline" disabled>
+                          이미 친구
+                        </Button>
+                      ) : user.isPending ? (
+                        <Button size="sm" variant="outline" disabled>
+                          요청 대기 중
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => handleSendFriendRequest(user.cognitoSub)}>
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          친구 요청
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -122,11 +202,12 @@ export default function FriendsPage() {
                   <div key={request.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg bg-white">
                     <div className="flex items-center gap-3">
                       <Avatar>
-                        <AvatarFallback>U</AvatarFallback>
+                        <AvatarFallback>{request.fromUserName?.charAt(0) || 'U'}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-gray-900">친구 요청</p>
-                        <p className="text-sm text-slate-500">{new Date(request.createdAt).toLocaleDateString()}</p>
+                        <p className="font-medium text-gray-900">{request.fromUserName || '알 수 없음'}</p>
+                        <p className="text-sm text-slate-500">{request.fromUserEmail || ''}</p>
+                        <p className="text-xs text-slate-400">{new Date(request.createdAt).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -153,7 +234,11 @@ export default function FriendsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {friends.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>로딩 중...</p>
+              </div>
+            ) : friends.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <p>친구가 없습니다</p>
                 <p className="text-sm mt-2">친구를 추가해보세요!</p>
