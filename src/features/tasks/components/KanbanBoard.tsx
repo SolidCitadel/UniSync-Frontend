@@ -38,10 +38,16 @@ export default function KanbanBoard({ tasks, setTasks }: KanbanBoardProps) {
     };
   };
 
-  const [newTask, setNewTask] = useState({
+  const [newTask, setNewTask] = useState<{
+    title: string;
+    description: string;
+    status: TaskStatus;
+    startDate: string;
+    endDate: string;
+  }>({
     title: '',
     description: '',
-    status: 'todo' as const,
+    status: 'todo',
     ...getDefaultDates()
   });
 
