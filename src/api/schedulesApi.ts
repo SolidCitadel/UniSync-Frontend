@@ -1,9 +1,6 @@
 // Schedules API
 import apiClient from './client';
 import type { Schedule, Task } from '@/types';
-import { store, generateId } from '@/mocks/mockStore';
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Backend ScheduleResponse type
 interface ScheduleResponse {
@@ -67,12 +64,19 @@ export const schedulesApi = {
   },
 
   /**
-   * Get schedules for a specific calendar
-   * TODO: Replace with axios.get(`/api/schedules?calendarId=${calendarId}`)
+   * Get schedules for a specific calendar (category)
    */
   async getSchedulesByCalendar(calendarId: string): Promise<Schedule[]> {
-    await delay(300);
-    return store.schedules.filter((s) => s.calendarId === calendarId);
+    try {
+      // Get all schedules and filter by calendarId on client side
+      // Backend doesn't have a filter by categoryId endpoint yet
+      const response = await apiClient.get<ScheduleResponse[]>('/v1/schedules');
+      const allSchedules = response.data.map(mapScheduleResponseToSchedule);
+      return allSchedules.filter((s) => s.calendarId === calendarId);
+    } catch (error) {
+      console.error('[schedulesApi.getSchedulesByCalendar] Error fetching schedules:', error);
+      throw error;
+    }
   },
 
   /**
@@ -189,66 +193,50 @@ export const schedulesApi = {
 
   /**
    * Delete a schedule
-   * TODO: Replace with axios.delete(`/api/schedules/${scheduleId}`)
    */
   async deleteSchedule(scheduleId: string): Promise<void> {
-    await delay(300);
-
-    const scheduleIndex = store.schedules.findIndex((s) => s.id === scheduleId);
-    if (scheduleIndex === -1) {
-      throw new Error('일정을 찾을 수 없습니다.');
+    try {
+      await apiClient.delete(`/v1/schedules/${scheduleId}`);
+    } catch (error) {
+      console.error('[schedulesApi.deleteSchedule] Error deleting schedule:', error);
+      throw error;
     }
-
-    // Check if schedule belongs to E-Campus (read-only)
-    const schedule = store.schedules[scheduleIndex];
-    const calendar = store.calendars.find((c) => c.id === schedule.calendarId);
-    if (calendar?.type === 'ecampus') {
-      throw new Error('E-Campus 캘린더의 일정은 삭제할 수 없습니다.');
-    }
-
-    store.schedules.splice(scheduleIndex, 1);
   },
 
   /**
    * Convert schedule to task (spec.md section 4.2)
    * Creates a parent task with startDate=today, endDate=schedule.end
-   * TODO: Replace with axios.post('/api/schedules/${scheduleId}/convert-to-task')
+   * Note: This endpoint may not be implemented yet in the backend
    */
   async convertToTask(scheduleId: string): Promise<Task> {
-    await delay(400);
+    try {
+      // TODO: Implement backend endpoint for converting schedule to task
+      // const response = await apiClient.post<TaskResponse>(`/v1/schedules/${scheduleId}/convert-to-task`);
+      // return mapTaskResponse(response.data);
 
-    const schedule = store.schedules.find((s) => s.id === scheduleId);
-    if (!schedule) {
-      throw new Error('일정을 찾을 수 없습니다.');
+      throw new Error('일정을 작업으로 변환하는 기능은 아직 구현되지 않았습니다.');
+    } catch (error) {
+      console.error('[schedulesApi.convertToTask] Error converting schedule to task:', error);
+      throw error;
     }
-
-    const newTask: Task = {
-      id: generateId(),
-      title: schedule.title,
-      description: schedule.description,
-      startDate: new Date(), // Today
-      endDate: schedule.end,
-      status: 'todo',
-      parentTaskId: null, // Always creates parent task
-    };
-
-    store.tasks.push(newTask);
-    return newTask;
   },
 
   /**
    * Mark schedule as completed/incomplete
-   * TODO: Replace with axios.patch(`/api/schedules/${scheduleId}/complete`, { isCompleted })
+   * Note: This uses the same updateSchedule logic with status field
    */
   async toggleComplete(scheduleId: string, isCompleted: boolean): Promise<Schedule> {
-    await delay(300);
-
-    const scheduleIndex = store.schedules.findIndex((s) => s.id === scheduleId);
-    if (scheduleIndex === -1) {
-      throw new Error('일정을 찾을 수 없습니다.');
+    try {
+      // Use the status update endpoint
+      const status = isCompleted ? 'DONE' : 'TODO';
+      const response = await apiClient.patch<ScheduleResponse>(
+        `/v1/schedules/${scheduleId}/status`,
+        { status }
+      );
+      return mapScheduleResponseToSchedule(response.data);
+    } catch (error) {
+      console.error('[schedulesApi.toggleComplete] Error toggling schedule completion:', error);
+      throw error;
     }
-
-    store.schedules[scheduleIndex].isCompleted = isCompleted;
-    return store.schedules[scheduleIndex];
   },
 };

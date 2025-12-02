@@ -1,9 +1,6 @@
 // Calendars API
 import apiClient from './client';
 import type { Calendar, CalendarType } from '@/types';
-import { store } from '@/mocks/mockStore';
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Backend CategoryResponse type
 interface CategoryResponse {
@@ -59,33 +56,49 @@ export const calendarsApi = {
 
   /**
    * Toggle calendar visibility
-   * TODO: Replace with axios.patch(`/api/calendars/${calendarId}`, { isVisible })
+   * Note: Backend may not support visibility toggle yet - stored locally
    */
   async toggleVisibility(calendarId: string, isVisible: boolean): Promise<Calendar> {
-    await delay(200);
+    try {
+      // Backend doesn't have a visibility toggle endpoint yet
+      // For now, we'll just fetch the calendar and return it with the updated visibility
+      // In a real implementation, you might want to store visibility in localStorage
 
-    const calendar = store.calendars.find((c) => c.id === calendarId);
-    if (!calendar) {
-      throw new Error('캘린더를 찾을 수 없습니다.');
+      const response = await apiClient.get<CategoryResponse>(`/v1/categories/${calendarId}`);
+      const calendar = mapCategoryResponseToCalendar(response.data);
+      calendar.isVisible = isVisible; // Update locally
+
+      // Store visibility preference in localStorage
+      const visibilityKey = `calendar-visibility-${calendarId}`;
+      localStorage.setItem(visibilityKey, JSON.stringify(isVisible));
+
+      return calendar;
+    } catch (error) {
+      console.error('[calendarsApi.toggleVisibility] Error toggling visibility:', error);
+      throw error;
     }
-
-    calendar.isVisible = isVisible;
-    return calendar;
   },
 
   /**
    * Get calendar by ID
-   * TODO: Replace with axios.get(`/api/calendars/${calendarId}`)
    */
   async getCalendar(calendarId: string): Promise<Calendar> {
-    await delay(200);
+    try {
+      const response = await apiClient.get<CategoryResponse>(`/v1/categories/${calendarId}`);
+      const calendar = mapCategoryResponseToCalendar(response.data);
 
-    const calendar = store.calendars.find((c) => c.id === calendarId);
-    if (!calendar) {
-      throw new Error('캘린더를 찾을 수 없습니다.');
+      // Restore visibility preference from localStorage
+      const visibilityKey = `calendar-visibility-${calendarId}`;
+      const storedVisibility = localStorage.getItem(visibilityKey);
+      if (storedVisibility !== null) {
+        calendar.isVisible = JSON.parse(storedVisibility);
+      }
+
+      return calendar;
+    } catch (error) {
+      console.error('[calendarsApi.getCalendar] Error fetching calendar:', error);
+      throw error;
     }
-
-    return calendar;
   },
 
   /**

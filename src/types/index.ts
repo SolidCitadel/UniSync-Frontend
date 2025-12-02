@@ -63,6 +63,8 @@ export interface Friend {
 export interface FriendRequest {
   id: string;
   fromUserId: string;
+  fromUserName?: string;
+  fromUserEmail?: string;
   toUserId: string;
   status: FriendStatus;
   createdAt: Date;
