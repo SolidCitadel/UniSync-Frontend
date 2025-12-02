@@ -220,12 +220,28 @@ export const tasksApi = {
     subtaskData: Omit<Task, 'id' | 'parentTaskId'>
   ): Promise<Task> {
     try {
+      // Get default category ID from user's first category
+      const categoriesResponse = await apiClient.get('/v1/categories');
+      console.log('[tasksApi.createSubtask] Categories response:', categoriesResponse.data);
+
+      if (!categoriesResponse.data || categoriesResponse.data.length === 0) {
+        throw new Error('카테고리가 없습니다. 먼저 카테고리를 생성해주세요.');
+      }
+
+      const defaultCategoryId = categoriesResponse.data[0].categoryId;
+      console.log('[tasksApi.createSubtask] Using categoryId:', defaultCategoryId);
+
       const requestBody = {
         title: subtaskData.title,
         description: subtaskData.description || null,
+        startDate: formatDateToString(subtaskData.startDate),
         dueDate: formatDateToString(subtaskData.endDate),
+        categoryId: defaultCategoryId,
+        scheduleId: null,
+        priority: 'MEDIUM', // Default priority
       };
 
+      console.log('[tasksApi.createSubtask] Request body:', requestBody);
       const response = await apiClient.post<TodoResponse>(
         `/v1/todos/${parentTaskId}/subtasks`,
         requestBody
