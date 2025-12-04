@@ -181,99 +181,72 @@ export default function When2MeetScheduler({
                 });
               });
             } else {
-              // 다른 사용자인 경우: 해당 사용자만의 free slots와 비교
-              console.log(`[When2Meet] Member ${memberId} is other user, fetching individual free slots`);
+              // 다른 사용자인 경우: 날짜별로 free slots 조회 (백엔드 버그 우회)
+              console.log(`[When2Meet] Member ${memberId} is other user, fetching free slots per day`);
 
-              // 해당 사용자 단독으로 free slots 조회
+              // 해당 사용자의 비어있는 시간
+              const userFreeSlots = new Set<string>();
+
               try {
-                const individualFreeSlots = await groupsApi.findFreeSlots({
-                  groupId: parseInt(groupId),
-                  userIds: [memberId], // 해당 사용자만
-                  startDate: dateRange[0].toISOString().split('T')[0],
-                  endDate: dateRange[dateRange.length - 1].toISOString().split('T')[0],
-                  minDurationMinutes: 60,
-                  workingHoursStart: '09:00',
-                  workingHoursEnd: '22:00',
-                  daysOfWeek: [1, 2, 3, 4, 5, 6, 7],
-                });
+                // 날짜별로 API 호출
+                for (const date of dateRange) {
+                  const dateStr = date.toISOString().split('T')[0];
 
-                console.log(`[When2Meet] Member ${memberId} API response:`, individualFreeSlots);
-                console.log(`[When2Meet] Member ${memberId} free slots detail:`, individualFreeSlots.freeSlots.map(s => ({
-                  start: s.startTime,
-                  end: s.endTime,
-                  startParsed: new Date(s.startTime).toString(),
-                  endParsed: new Date(s.endTime).toString()
-                })));
+                  console.log(`[When2Meet] Fetching free slots for member ${memberId} on ${dateStr}`);
 
-                // API가 빈 응답을 반환한 경우, 이 사용자는 일정이 없는 것으로 처리
-                if (!individualFreeSlots.freeSlots || individualFreeSlots.freeSlots.length === 0) {
-                  console.log(`[When2Meet] Member ${memberId} has no schedules (API returned empty free slots)`);
-                  // slots는 빈 Set으로 남김 (일정이 없음)
-                } else {
-                  // 해당 사용자의 비어있는 시간
-                  const userFreeSlots = new Set<string>();
+                  const dailyFreeSlots = await groupsApi.findFreeSlots({
+                    groupId: parseInt(groupId),
+                    userIds: [memberId],
+                    startDate: dateStr,
+                    endDate: dateStr, // 같은 날짜로 설정하여 날짜가 넘어가지 않도록 함
+                    minDurationMinutes: 60,
+                    workingHoursStart: '09:00',
+                    workingHoursEnd: '22:00',
+                    daysOfWeek: [1, 2, 3, 4, 5, 6, 7],
+                  });
 
-                  // API가 반환한 날짜들을 추적
-                  const datesWithFreeSlots = new Set<string>();
+                  console.log(`[When2Meet] Member ${memberId} on ${dateStr} - API response:`, dailyFreeSlots);
 
-                  individualFreeSlots.freeSlots.forEach(slot => {
-                    const start = new Date(slot.startTime);
-                    const end = new Date(slot.endTime);
+                  // 이 날짜의 free slots 처리
+                  if (dailyFreeSlots.freeSlots && dailyFreeSlots.freeSlots.length > 0) {
+                    dailyFreeSlots.freeSlots.forEach(slot => {
+                      const start = new Date(slot.startTime);
+                      const end = new Date(slot.endTime);
 
-                    console.log(`[When2Meet] Processing free slot: ${start.toLocaleString('ko-KR')} ~ ${end.toLocaleString('ko-KR')}`);
+                      console.log(`[When2Meet] Processing free slot: ${start.toLocaleString('ko-KR')} ~ ${end.toLocaleString('ko-KR')}`);
 
-                    // Free slot의 모든 시간대를 순회
-                    let currentTime = new Date(start);
-                    while (currentTime < end) {
-                      const hour = currentTime.getHours();
-
-                      // dateRange에 포함된 날짜인지 확인
-                      const matchingDate = dateRange.find(d =>
-                        d.toDateString() === currentTime.toDateString()
-                      );
-
-                      if (matchingDate) {
-                        datesWithFreeSlots.add(matchingDate.toDateString());
+                      // Free slot의 모든 시간대를 순회
+                      let currentTime = new Date(start);
+                      while (currentTime < end) {
+                        const hour = currentTime.getHours();
 
                         if (hours.includes(hour)) {
-                          const dateStr = formatDate(matchingDate);
-                          const slotKey = `${dateStr}-${hour}`;
+                          const slotKey = `${formatDate(date)}-${hour}`;
                           userFreeSlots.add(slotKey);
                           console.log(`[When2Meet]   Added free slot: ${slotKey}`);
                         }
+
+                        // 다음 시간으로 이동
+                        currentTime.setHours(currentTime.getHours() + 1);
                       }
+                    });
 
-                      // 다음 시간으로 이동
-                      currentTime.setHours(currentTime.getHours() + 1);
-                    }
-                  });
-
-                  console.log(`[When2Meet] Member ${memberId} free slots count: ${userFreeSlots.size}`, Array.from(userFreeSlots).slice(0, 5));
-                  console.log(`[When2Meet] Dates with free slots:`, Array.from(datesWithFreeSlots));
-                  console.log(`[When2Meet] Total slots in dateRange: ${dateRange.length * hours.length}`);
-
-                  // 비어있지 않은 시간 = 일정이 있는 시간
-                  // 단, API가 반환한 날짜에 대해서만 체크
-                  dateRange.forEach(date => {
-                    const dateStr = formatDate(date);
-                    const dateString = date.toDateString();
-
-                    // API가 이 날짜에 대한 free slots를 반환한 경우에만 occupied 체크
-                    if (datesWithFreeSlots.has(dateString)) {
-                      hours.forEach(hour => {
-                        const slotKey = `${dateStr}-${hour}`;
-                        if (!userFreeSlots.has(slotKey)) {
-                          slots.add(slotKey);
-                        }
-                      });
-                    }
-                    // API가 이 날짜에 대한 응답을 주지 않았으면 일정이 없는 것으로 간주 (slots에 추가하지 않음)
-                  });
-
-                  console.log(`[When2Meet] Member ${memberId} occupied slots count: ${slots.size}`);
+                    // 이 날짜의 occupied slots 계산 (비어있지 않은 시간)
+                    const dateFmt = formatDate(date);
+                    hours.forEach(hour => {
+                      const slotKey = `${dateFmt}-${hour}`;
+                      if (!userFreeSlots.has(slotKey)) {
+                        slots.add(slotKey);
+                      }
+                    });
+                  }
+                  // API가 빈 응답이면 이 날짜는 일정이 없는 것으로 처리 (아무것도 안함)
                 }
+
+                console.log(`[When2Meet] Member ${memberId} total free slots: ${userFreeSlots.size}`);
+                console.log(`[When2Meet] Member ${memberId} total occupied slots: ${slots.size}`);
               } catch (error) {
-                console.error(`[When2Meet] Failed to fetch individual free slots for ${memberId}:`, error);
+                console.error(`[When2Meet] Failed to fetch free slots for ${memberId}:`, error);
                 // API 실패 시 빈 일정으로 처리
               }
             }
