@@ -58,7 +58,7 @@ export default function When2MeetScheduler({
   const [endDate, setEndDate] = useState(getTodayString());
   const [dateRange, setDateRange] = useState<Date[]>([]);
 
-  const hours = Array.from({ length: 14 }, (_, i) => i + 9); // 9 AM to 10 PM
+  const hours = Array.from({ length: 13 }, (_, i) => i + 9); // 9 AM to 9 PM (21:00)
 
   // 초기 로드 시 날짜 범위 설정
   useEffect(() => {
