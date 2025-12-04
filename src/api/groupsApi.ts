@@ -114,12 +114,12 @@ export const groupsApi = {
 
       const groupId = response.data.groupId;
 
-      // 2. Invite each member separately
+      // 2. Invite each member separately as ADMIN
       if (memberCognitoSubs.length > 0) {
         const invitePromises = memberCognitoSubs.map(cognitoSub =>
           apiClient.post<MemberResponse>(`/v1/groups/${groupId}/members`, {
             userCognitoSub: cognitoSub,
-            role: 'MEMBER',
+            role: 'ADMIN', // All members are admins so they can create group schedules
           }).catch(error => {
             console.error(`[groupsApi.createGroup] Failed to invite ${cognitoSub}:`, error);
             // Don't throw - continue with other invites
@@ -173,6 +173,7 @@ export const groupsApi = {
     try {
       const response = await apiClient.post<MemberResponse>(`/v1/groups/${groupId}/members`, {
         userCognitoSub,
+        role: 'ADMIN', // All members are admins so they can create/delete group schedules
       });
       return response.data;
     } catch (error: any) {
