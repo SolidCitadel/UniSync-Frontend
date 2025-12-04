@@ -27,8 +27,8 @@ npm run dev
 # API Gateway URL
 VITE_API_BASE_URL=http://localhost:8080/api
 
-# Canvas LMS URL (optional)
-VITE_CANVAS_URL=https://canvas.instructure.com
+# CORS Configuration
+CORS_ALLOWED_ORIGIN=http://localhost:3000
 ```
 
 ## 주요 기능
