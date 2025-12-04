@@ -146,6 +146,25 @@ export default function GroupsPage({ schedules, setSchedules }: GroupsPageProps)
       // Add to local state
       setSchedules((prev) => [...prev, created]);
 
+      // Add to group schedules state
+      const userData = localStorage.getItem('user_data');
+      const currentUserId = userData ? JSON.parse(userData).id : '';
+
+      const groupSchedule: GroupSchedule = {
+        id: created.id,
+        groupId: selectedGroup.id,
+        title: newEvent.title,
+        description: newEvent.description,
+        location: newEvent.location,
+        start: startDateTime,
+        end: endDateTime,
+        memberIds: selectedGroup.members?.map(m => m.id) || [],
+        createdBy: currentUserId,
+        createdAt: new Date(),
+      };
+
+      setGroupSchedules((prev) => [...prev, groupSchedule]);
+
       setNewEvent({
         title: '',
         description: '',
