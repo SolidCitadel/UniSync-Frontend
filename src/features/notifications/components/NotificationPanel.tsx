@@ -9,13 +9,24 @@ import {
 import { notificationsApi, friendsApi } from '@/api';
 import type { Notification } from '@/types';
 
+// Global flag to prevent duplicate checks across StrictMode double renders
+let globalIsChecking = false;
+const globalProcessedIds = new Set<string>();
+
 export default function NotificationPanel() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const processedRequestIdsRef = useRef<Set<string>>(new Set());
 
   const loadNotifications = useCallback(async () => {
     try {
+      // Only load notifications if user is logged in
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+
       const data = await notificationsApi.listNotifications();
       setNotifications(data);
     } catch (error) {
@@ -26,10 +37,28 @@ export default function NotificationPanel() {
   }, []);
 
   const checkForNewFriendRequests = useCallback(async () => {
+    // Prevent concurrent executions using global flag
+    if (globalIsChecking) {
+      console.log('[NotificationPanel] Already checking (global), skipping...');
+      return;
+    }
+
     try {
+      globalIsChecking = true;
+
+      // Only check if user is logged in (has auth token)
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.log('[NotificationPanel] Not logged in, skipping friend request check');
+        return;
+      }
+
+      console.log('[NotificationPanel] Checking for new friend requests...');
       const pendingRequests = await friendsApi.getPendingRequests();
+      console.log('[NotificationPanel] Pending requests:', pendingRequests);
 
       if (pendingRequests.length === 0) {
+        console.log('[NotificationPanel] No pending requests');
         return;
       }
 
@@ -41,14 +70,20 @@ export default function NotificationPanel() {
           .map(n => n.relatedId)
       );
 
+      console.log('[NotificationPanel] Existing notification request IDs:', Array.from(existingRequestIds));
+      console.log('[NotificationPanel] Already processed request IDs (global):', Array.from(globalProcessedIds));
+
       let hasNewRequests = false;
 
       // Check for new requests that we haven't processed yet
       for (const request of pendingRequests) {
-        // Skip if already in processedRef or if notification already exists
-        if (processedRequestIdsRef.current.has(request.id) || existingRequestIds.has(request.id)) {
+        // Skip if already in global processedIds or if notification already exists
+        if (globalProcessedIds.has(request.id) || existingRequestIds.has(request.id)) {
+          console.log('[NotificationPanel] Skipping request (already processed):', request.id);
           continue;
         }
+
+        console.log('[NotificationPanel] Creating notification for request:', request.id, request.fromUserName);
 
         // Create notification for this friend request
         await notificationsApi.createNotification(
@@ -59,30 +94,38 @@ export default function NotificationPanel() {
           '/friends'
         );
 
-        processedRequestIdsRef.current.add(request.id);
+        globalProcessedIds.add(request.id);
         hasNewRequests = true;
       }
 
       // Reload notifications if there were new requests
       if (hasNewRequests) {
-        await loadNotifications();
+        console.log('[NotificationPanel] Reloading notifications after creating new ones');
+        const data = await notificationsApi.listNotifications();
+        setNotifications(data);
       }
     } catch (error) {
-      console.error('Failed to check for friend requests:', error);
+      console.error('[NotificationPanel] Failed to check for friend requests:', error);
+    } finally {
+      globalIsChecking = false;
     }
-  }, [loadNotifications]);
+  }, []); // Remove loadNotifications from dependencies
 
   useEffect(() => {
-    loadNotifications();
-    checkForNewFriendRequests(); // Initial check
+    // Clear global processed IDs on mount to prevent duplicates across sessions
+    globalProcessedIds.clear();
 
-    // Poll for new friend requests every 30 seconds
+    loadNotifications();
+    checkForNewFriendRequests(); // Initial check (only runs if logged in)
+
+    // Poll for new friend requests every 30 seconds (only runs if logged in)
     const interval = setInterval(() => {
       checkForNewFriendRequests();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [loadNotifications, checkForNewFriendRequests]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array to run only once on mount
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

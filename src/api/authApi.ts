@@ -33,6 +33,10 @@ const mockApi = {
     localStorage.setItem('auth_token', token);
     localStorage.setItem('user_data', JSON.stringify(user));
 
+    // Clear mock store notifications on login to prevent duplicates
+    const { store } = await import('@/mocks/mockStore');
+    store.notifications = [];
+
     return { user, token };
   },
 
@@ -76,6 +80,10 @@ const mockApi = {
     mockCurrentUser = null;
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
+
+    // Clear mock store data on logout
+    const { store } = await import('@/mocks/mockStore');
+    store.notifications = [];
   },
 
   async updateProfile(updates: Partial<User>): Promise<User> {
@@ -136,6 +144,10 @@ const realApi = {
         localStorage.setItem('auth_token', token);
         localStorage.setItem('user_data', JSON.stringify(user));
       }
+
+      // Clear mock store notifications on login to prevent duplicates
+      const { store } = await import('@/mocks/mockStore');
+      store.notifications = [];
 
       return { user, token, ...data };
     } catch (error: any) {
@@ -256,6 +268,10 @@ const realApi = {
     } finally {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
+
+      // Clear mock store data on logout (for notifications which use mock store)
+      const { store } = await import('@/mocks/mockStore');
+      store.notifications = [];
     }
   },
 

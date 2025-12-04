@@ -238,11 +238,13 @@ export default function App() {
       setIsLoggedIn(false);
       setUser(null);
       setCurrentPage('dashboard');
+
+      // Reset to initial state
+      setCalendars(initialCalendars);
+      setSchedules(initialSchedules);
+      setTasks(initialTasks);
+
       toast.success('로그아웃되었습니다.');
-      // Reload page after a short delay
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
     } catch (error) {
       console.error('Logout failed:', error);
       toast.error('로그아웃에 실패했습니다.');
