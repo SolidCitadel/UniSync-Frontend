@@ -65,6 +65,7 @@ const mapTodoResponseToTask = (response: TodoResponse): Task => {
     endDate: parseDateString(response.dueDate),
     status: mapBackendStatusToFrontend(response.status),
     parentTaskId: response.parentTodoId ? response.parentTodoId.toString() : null,
+    scheduleId: response.scheduleId ? response.scheduleId.toString() : undefined,
   };
 };
 
@@ -259,6 +260,32 @@ export const tasksApi = {
       return mapTodoResponseToTask(response.data);
     } catch (error) {
       console.error('[tasksApi.createSubtask] Error creating subtask:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Create TODO from schedule
+   * Sets scheduleId to link with the schedule, and deadline to schedule's end date
+   */
+  async createTaskFromSchedule(schedule: { id: string; title: string; description?: string; start: Date; end: Date; calendarId: string }): Promise<Task> {
+    try {
+      const requestBody = {
+        title: schedule.title,
+        description: schedule.description || null,
+        startDate: formatDateToString(new Date()), // Start today
+        dueDate: formatDateToString(schedule.end), // Deadline = schedule end date
+        status: 'TODO',
+        categoryId: parseInt(schedule.calendarId),
+        scheduleId: parseInt(schedule.id), // Link to schedule
+        priority: 'MEDIUM',
+      };
+
+      console.log('[tasksApi.createTaskFromSchedule] Request body:', requestBody);
+      const response = await apiClient.post<TodoResponse>('/v1/todos', requestBody);
+      return mapTodoResponseToTask(response.data);
+    } catch (error) {
+      console.error('[tasksApi.createTaskFromSchedule] Error creating task from schedule:', error);
       throw error;
     }
   },

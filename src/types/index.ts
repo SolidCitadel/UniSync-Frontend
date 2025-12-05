@@ -35,9 +35,10 @@ export interface Task {
   title: string;
   description: string;
   startDate: Date;
-  endDate: Date;
+  endDate: Date; // Also used as deadline when coming from schedule
   status: TaskStatus;
   parentTaskId: string | null; // null = parent task, string = subtask
+  scheduleId?: string; // Optional - links to schedule if created from schedule
 }
 
 // User Types

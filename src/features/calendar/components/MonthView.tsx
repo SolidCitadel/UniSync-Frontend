@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { toast } from 'sonner';
 import { schedulesApi } from '@/api/schedulesApi';
+import { tasksApi } from '@/api/tasksApi';
 import { stripHtml } from '@/lib/htmlUtils';
 import type { Schedule, Task, Calendar } from '@/types';
 
@@ -256,18 +257,23 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
     return `${hours}:${minutes}`;
   };
 
-  const handleAddToTodo = (schedule: Schedule) => {
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title: schedule.title,
-      description: schedule.description,
-      startDate: new Date(schedule.start),
-      endDate: new Date(schedule.end),
-      status: 'todo',
-      parentTaskId: null
-    };
-    setTasks([...tasks, newTask]);
-    toast.success(`"${schedule.title}" 일정이 TODO에 추가되었습니다.`);
+  const handleAddToTodo = async (schedule: Schedule) => {
+    try {
+      const newTask = await tasksApi.createTaskFromSchedule({
+        id: schedule.id,
+        title: schedule.title,
+        description: schedule.description,
+        start: schedule.start,
+        end: schedule.end,
+        calendarId: schedule.calendarId,
+      });
+
+      setTasks([...tasks, newTask]);
+      toast.success(`"${schedule.title}" 일정이 TODO에 추가되었습니다.`);
+    } catch (error) {
+      console.error('Failed to add schedule to TODO:', error);
+      toast.error('TODO 추가에 실패했습니다.');
+    }
   };
 
   const renderCalendarDays = () => {
