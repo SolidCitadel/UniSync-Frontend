@@ -3242,11 +3242,10 @@
                         "type": "string"
                       },
                       "description": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                       },
                       "location": {
-                        "type": "null"
+                        "type": "string"
                       },
                       "startTime": {
                         "type": "string"
@@ -3267,33 +3266,18 @@
                         "type": "string"
                       },
                       "sourceId": {
-                        "type": "string"
+                        "type": "null"
                       },
                       "createdAt": {
                         "type": "string"
                       },
                       "updatedAt": {
                         "type": "string"
+                      },
+                      "todos": {
+                        "type": "null"
                       }
-                    },
-                    "required": [
-                      "scheduleId",
-                      "cognitoSub",
-                      "groupId",
-                      "categoryId",
-                      "title",
-                      "description",
-                      "location",
-                      "startTime",
-                      "endTime",
-                      "isAllDay",
-                      "status",
-                      "recurrenceRule",
-                      "source",
-                      "sourceId",
-                      "createdAt",
-                      "updatedAt"
-                    ]
+                    }
                   }
                 },
                 "example": [
@@ -3688,17 +3672,39 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string"
+                  },
+                  "dueDate": {
+                    "type": "string"
+                  },
+                  "categoryId": {
+                    "type": "integer"
+                  },
+                  "groupId": {
+                    "type": "null"
+                  },
                   "priority": {
-                    "type": "string",
-                    "enum": [
-                      "LOW",
-                      "MEDIUM",
-                      "HIGH",
-                      "URGENT"
-                    ]
+                    "type": "string"
+                  },
+                  "parentTodoId": {
+                    "type": "null"
+                  },
+                  "scheduleId": {
+                    "type": "null"
                   }
                 },
                 "required": [
+                  "title",
+                  "startDate",
+                  "dueDate",
+                  "categoryId",
                   "priority"
                 ]
               },
@@ -3710,7 +3716,7 @@
                 "categoryId": 4,
                 "groupId": null,
                 "priority": "MEDIUM",
-                "parentTodoId": 1,
+                "parentTodoId": null,
                 "scheduleId": null
               }
             }
