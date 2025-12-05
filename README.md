@@ -11,7 +11,7 @@
 
 ```bash
 # 의존성 설치
-npm install --legacy-peer-deps
+npm install
 
 # 개발 서버 시작
 npm run dev
