@@ -37,6 +37,9 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
   const [selectedDaySchedules, setSelectedDaySchedules] = useState<Schedule[]>([]);
   const [selectedDayNumber, setSelectedDayNumber] = useState<number>(0);
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
+  const [linkedTodo, setLinkedTodo] = useState<Task | null>(null);
+  const [linkedSubtasks, setLinkedSubtasks] = useState<Task[]>([]);
+  const [isTodoInfoOpen, setIsTodoInfoOpen] = useState(false);
 
   // 오늘 날짜를 YYYY-MM-DD 형식으로 반환
   const getTodayDate = () => {
@@ -227,6 +230,20 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
       location: schedule.location || ''
     });
     setIsDialogOpen(true);
+
+    // Check if there's a TODO linked to this schedule
+    const linkedTask = tasks.find(task => task.scheduleId === schedule.id);
+    if (linkedTask) {
+      setLinkedTodo(linkedTask);
+      // Find subtasks of the linked TODO
+      const subtasks = tasks.filter(task => task.parentTaskId === linkedTask.id);
+      setLinkedSubtasks(subtasks);
+      setIsTodoInfoOpen(true);
+    } else {
+      setLinkedTodo(null);
+      setLinkedSubtasks([]);
+      setIsTodoInfoOpen(false);
+    }
   };
 
   const getSchedulesForDate = (day: number) => {
@@ -420,7 +437,12 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
         </Button>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) {
+          setIsTodoInfoOpen(false);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -591,6 +613,47 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
             </div>
           </div>
         </>
+      )}
+
+      {/* TODO Info Dialog - displayed next to schedule edit dialog */}
+      {isTodoInfoOpen && linkedTodo && (
+        <div
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6"
+          style={{
+            top: '25%',
+            right: 'calc(50% - 280px - 336px)',
+            width: '320px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            zIndex: 9999
+          }}
+        >
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">TODO</h3>
+          </div>
+          <div className="space-y-3">
+            {/* Parent TODO */}
+            <div className="font-medium text-gray-900">{linkedTodo.title}</div>
+
+            {/* Subtasks */}
+            {linkedSubtasks.length > 0 && (
+              <div className="ml-2 space-y-2">
+                {linkedSubtasks.map((subtask) => {
+                  const statusText = subtask.status === 'done' ? 'Done' : subtask.status === 'progress' ? 'In Progress' : 'Todo';
+                  const statusColor = subtask.status === 'done' ? 'text-green-600' : subtask.status === 'progress' ? 'text-blue-600' : 'text-gray-500';
+
+                  return (
+                    <div key={subtask.id} className="text-sm text-gray-700 flex items-start gap-2">
+                      <span className="text-gray-400">├─</span>
+                      <span className={`flex-1 ${subtask.status === 'done' ? 'line-through opacity-60' : ''}`}>{subtask.title}</span>
+                      <span className={`text-xs ${statusColor} font-medium`}>({statusText})</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="bg-white border border-gray-300 rounded-lg shadow-sm overflow-hidden">
