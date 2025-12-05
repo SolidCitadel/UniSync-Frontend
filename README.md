@@ -54,12 +54,21 @@ CORS_ALLOWED_ORIGIN=http://localhost:3000
 ### 할 일 관리
 - **칸반 보드**: 3개 열 (할 일, 진행 중, 완료)
 - **간트 차트**: 타임라인 뷰, 부모/하위 작업 계층 구조
+- **Deadline 기능**:
+  - 작업에 마감기한(deadline) 설정 가능 (선택사항)
+  - 간트 차트에서 deadline을 빨간 세로선으로 표시
+  - 일정→TODO 변환 시 일정의 종료 시간이 deadline으로 자동 설정
+  - 날짜만 입력 가능 (시간은 23:59:59로 자동 설정)
 - **동기화 규칙**:
   - 하위 작업이 없는 부모 작업만 칸반에 표시
   - 하위 작업 생성 시 부모는 칸반에서 제거되고 모든 하위 작업이 표시됨
   - 칸반에서는 부모 작업만 생성 가능
   - 상태 변경이 칸반과 간트 간 동기화됨
 - 완료된 작업 간트 차트에서 취소선 표시
+- **일정→TODO 정보 표시**:
+  - 일정을 TODO로 변환한 경우, 일정 편집 시 우측에 TODO 정보 팝업 표시
+  - 부모 TODO 제목 및 모든 서브태스크 트리 구조로 표시
+  - 각 서브태스크의 상태 표시 (Todo/In Progress/Done)
 
 ### 친구 & 그룹
 - 이메일/ID로 친구 추가
@@ -80,7 +89,9 @@ CORS_ALLOWED_ORIGIN=http://localhost:3000
 
 ### 마이페이지
 - 프로필 관리
-- Google Calendar 연동 (UI 준비 완료)
+- Google Calendar 연동
+  - "Google Calendar" 캘린더 생성
+  - 연동 상태 자동 감지 (로그인 시 Google Calendar 존재 여부 확인)
 - E-Campus 토큰 연동 (백엔드 연동 완료)
 - 비밀번호 변경
 - 계정 설정
@@ -195,6 +206,8 @@ UniSync-front/
    - 상태 매핑 (TODO/IN_PROGRESS/DONE ↔ todo/progress/done)
    - 우선순위 지원 (LOW/MEDIUM/HIGH/URGENT)
    - 자동 카테고리 할당
+   - Deadline 필드 지원 (선택사항)
+   - 일정→TODO 변환 시 HTML 태그 자동 제거
 
 5. **친구 API** (`friendsApi.ts`)
    - 백엔드: `/api/v1/friends`
@@ -276,7 +289,7 @@ UniSync-front/
 ### 알려진 제한사항
 
 - **알림**: UI 준비 완료, 백엔드 통합 대기 중
-- **Google Calendar**: UI 준비 완료, OAuth 플로우 대기 중
+- **Google Calendar**: 기본 캘린더 생성 기능 구현, OAuth 플로우는 향후 구현 예정
 
 ## 주요 구현 세부사항
 
@@ -312,8 +325,11 @@ spec.md 섹션 4.2에 따라 일정을 작업으로 변환:
 - 새 부모 작업 생성
 - `startDate` = 오늘
 - `endDate` = 일정의 종료 날짜
+- `deadline` = 일정의 종료 시간
 - `status` = 'todo'
+- description에서 HTML 태그 자동 제거
 - 칸반과 간트 모두에 표시됨
+- 변환된 일정 클릭 시 우측에 TODO 정보 팝업 표시
 
 ### 그룹 일정 조율
 
@@ -391,6 +407,25 @@ When2Meet 스타일의 일정 조율:
 - [ ] CI/CD 파이프라인 설정
 
 ## 최근 업데이트
+
+### 2025-01-06
+- **Deadline 기능 추가**
+  - Task에 deadline 필드 추가 (선택사항)
+  - 간트 차트에서 deadline을 빨간 세로선으로 시각화
+  - 날짜만 입력 가능 (시간은 23:59:59로 자동 설정)
+  - 일정→TODO 변환 시 일정의 종료 시간이 deadline으로 자동 설정
+- **일정→TODO 정보 표시**
+  - 일정을 TODO로 변환한 경우, 일정 클릭 시 우측에 TODO 정보 팝업 자동 표시
+  - 부모 TODO와 모든 서브태스크를 트리 구조로 표시
+  - 각 서브태스크의 상태(Todo/In Progress/Done) 색상으로 구분
+  - 완료된 서브태스크는 취소선 표시
+- **Google Calendar 연동**
+  - 연동하기 버튼 클릭 시 "Google Calendar" 캘린더 생성
+  - 로그인 시 Google Calendar 존재 여부를 자동으로 확인하여 연동 상태 표시
+- **일정→TODO 변환 개선**
+  - description에서 HTML 태그 자동 제거
+- **기타**
+  - Favicon 제거
 
 ### 2025-01-04
 - 친구 API 백엔드 통합 완료

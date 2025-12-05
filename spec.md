@@ -102,6 +102,8 @@
   - `endDate`: Date 객체
   - `status`: `enum(todo, progress, done)`
   - `parentTaskId`: 상위 태스크 ID (없으면 `null` = parent task)
+  - `scheduleId`: 일정 ID (선택, 일정→TODO 변환 시 자동 설정)
+  - `deadline`: Date 객체 (선택사항, 마감기한)
 
 - **백엔드 필드 (TodoResponse)**
   - `todoId`: 숫자 (→ 프론트엔드 `id`로 변환)
@@ -109,6 +111,7 @@
   - `description`: 문자열 | null
   - `startDate`: 문자열 (YYYY-MM-DD)
   - `dueDate`: 문자열 (YYYY-MM-DD, → 프론트엔드 `endDate`로 변환)
+  - `deadline`: 문자열 | null (ISO 8601 datetime: YYYY-MM-DDTHH:mm:ss)
   - `status`: `enum(TODO, IN_PROGRESS, DONE)` (→ 프론트엔드 소문자로 변환)
   - `priority`: `enum(LOW, MEDIUM, HIGH, URGENT)` (필수)
   - `parentTodoId`: 숫자 | null
@@ -138,6 +141,14 @@
 - **날짜 변환 규칙**
   - Frontend Date → Backend: `YYYY-MM-DD` 문자열
   - Backend 문자열 → Frontend: `new Date(dateStr)`
+  - Deadline 변환: Frontend Date → Backend ISO 8601 datetime (`YYYY-MM-DDTHH:mm:ss`)
+
+- **Deadline 기능** (🆕 2025-01-06)
+  - 작업의 마감기한을 나타내는 선택적 필드
+  - 간트 차트에서 빨간 세로선으로 시각화
+  - 날짜만 입력 가능 (시간은 23:59:59로 자동 설정)
+  - 일정→TODO 변환 시 일정의 종료 시간이 deadline으로 자동 설정
+  - 칸반/간트 모두에서 입력 가능
 
 > **중요**: 캘린더의 `schedule`과 칸반/간트의 `task`는 서로 다른 개념이다.
 > 단, 캘린더에서 특정 기능을 이용할 때 `task`를 새로 생성할 수 있다.
@@ -160,15 +171,23 @@
 
 ---
 
-## 2.2 Google Calendar 연동 (마이페이지) 백엔드에서 미구현!!
+## 2.2 Google Calendar 연동 (마이페이지)
 
-1. 사용자는 **마이페이지**에서 “Google 계정 연결” 기능을 사용할 수 있다.
-2. Google OAuth 플로우를 통해 사용자가 권한을 허용하면,
+### 현재 구현 상태 (🆕 2025-01-06)
+1. 사용자는 **마이페이지**에서 "Google Calendar 연동하기" 버튼을 클릭할 수 있다.
+2. 연동하기 버튼 클릭 시:
+   - "Google Calendar" 이름의 캘린더가 자동으로 생성된다.
+   - 연동 상태가 "연동됨"으로 표시된다.
+3. 로그인 시 자동으로 "Google Calendar" 존재 여부를 확인하여 연동 상태를 표시한다.
+4. 사용자는 생성된 "Google Calendar"에 일정을 추가할 수 있다.
+
+### 향후 구현 예정 (OAuth 연동)
+1. Google OAuth 플로우를 통해 사용자가 권한을 허용하면,
    - 서비스는 Google 액세스 토큰/리프레시 토큰을 안전하게 저장한다.
-3. 연동 완료 후:
+2. 연동 완료 후:
    - Google Calendar의 일정이 `Google Calendar` 타입의 `Calendar`와 연동된 `schedule`로 가져와진다.
    - 메인 캘린더에서 사이드바의 `Google Calendar` 표시 여부에 따라 보이거나 숨겨진다.
-4. 사용자가 캘린더에서 새 일정을 추가할 때, **캘린더 선택 옵션**에서  
+3. 사용자가 캘린더에서 새 일정을 추가할 때, **캘린더 선택 옵션**에서
    `Google Calendar`를 선택하면 해당 일정은 Google API를 통해 실제 Google Calendar에도 반영된다.
 
 ---
@@ -276,21 +295,29 @@
 
 ---
 
-## 4.2 “task에 추가” 버튼 동작
+## 4.2 "task에 추가" 버튼 동작
 
 - **조건**
-  - 사용자가 캘린더에서 특정 `schedule`에 대해 **“task에 추가”** 버튼을 누른다.
+  - 사용자가 캘린더에서 특정 `schedule`에 대해 **"task에 추가"** 버튼을 누른다.
 
 - **결과**
   - 새로운 **parent task**를 생성한다.
   - 이 task는 **칸반보드와 Gantt 차트에 동시에 생성**된다.
   - 생성되는 task의 필드는 다음과 같이 매핑한다.
     - `title` = schedule의 `title`
-    - `description` = schedule의 `description`
+    - `description` = schedule의 `description` (HTML 태그 자동 제거)
     - `startDate` = 오늘 날짜(현재 날짜)
     - `endDate` = 해당 schedule의 날짜 (필요 시 schedule의 `end` 기준)
+    - `deadline` = schedule의 종료 시간 (🆕 2025-01-06)
     - `status` = `todo`
     - `parentTaskId` = `null` (parent task)
+    - `scheduleId` = schedule의 `id` (연결 관계 저장)
+
+- **TODO 정보 표시** (🆕 2025-01-06)
+  - 일정을 TODO로 변환한 경우, 해당 일정 클릭 시 우측에 TODO 정보 팝업 자동 표시
+  - 부모 TODO 제목 및 모든 서브태스크를 트리 구조로 표시
+  - 각 서브태스크의 상태(Todo/In Progress/Done)를 색상으로 구분
+  - 완료된 서브태스크는 취소선 표시
 
 ---
 
