@@ -179,7 +179,7 @@ export default function App() {
             toast.success('기본 캘린더가 생성되었습니다.');
           }
 
-          const [fetchedSchedules, fetchedTasks] = await Promise.all([
+          let [fetchedSchedules, fetchedTasks] = await Promise.all([
             schedulesApi.listSchedules(),
             tasksApi.listTasks(),
           ]);
@@ -187,6 +187,22 @@ export default function App() {
           console.log('Fetched calendars:', fetchedCalendars);
           console.log('Fetched schedules:', fetchedSchedules);
           console.log('Fetched tasks:', fetchedTasks);
+
+          // Map group schedules to user's default calendar
+          const defaultCalendar =
+            fetchedCalendars.find(c => c.name === 'Calendar') ||
+            fetchedCalendars.find(c => c.type === 'local') ||
+            fetchedCalendars[0];
+
+          if (defaultCalendar) {
+            fetchedSchedules = fetchedSchedules.map(schedule => {
+              // If it's a group schedule, map to user's default calendar
+              if (schedule.groupId) {
+                return { ...schedule, calendarId: defaultCalendar.id };
+              }
+              return schedule;
+            });
+          }
 
           // Filter Canvas calendars based on enrollment status
           let filteredCalendars = fetchedCalendars;
@@ -270,7 +286,7 @@ export default function App() {
   const refreshData = async () => {
     try {
       console.log('[App] Refreshing calendars and schedules...');
-      const [fetchedCalendars, fetchedSchedules] = await Promise.all([
+      let [fetchedCalendars, fetchedSchedules] = await Promise.all([
         calendarsApi.listCalendars(),
         schedulesApi.listSchedules(),
       ]);
@@ -278,6 +294,22 @@ export default function App() {
       console.log('[App] Fetched calendars:', fetchedCalendars);
       console.log('[App] Fetched schedules:', fetchedSchedules);
       console.log('[App] Schedule count:', fetchedSchedules.length);
+
+      // Map group schedules to user's default calendar
+      const defaultCalendar =
+        fetchedCalendars.find(c => c.name === 'Calendar') ||
+        fetchedCalendars.find(c => c.type === 'local') ||
+        fetchedCalendars[0];
+
+      if (defaultCalendar) {
+        fetchedSchedules = fetchedSchedules.map(schedule => {
+          // If it's a group schedule, map to user's default calendar
+          if (schedule.groupId) {
+            return { ...schedule, calendarId: defaultCalendar.id };
+          }
+          return schedule;
+        });
+      }
 
       // Filter Canvas calendars based on enrollment status
       let filteredCalendars = fetchedCalendars;

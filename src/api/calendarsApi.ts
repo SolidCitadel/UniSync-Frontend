@@ -42,11 +42,15 @@ const mapCategoryResponseToCalendar = (response: CategoryResponse): Calendar => 
 
 export const calendarsApi = {
   /**
-   * Get all calendars for current user
+   * Get all calendars for current user (including group calendars)
    */
   async listCalendars(): Promise<Calendar[]> {
     try {
-      const response = await apiClient.get<CategoryResponse[]>('/v1/categories');
+      const response = await apiClient.get<CategoryResponse[]>('/v1/categories', {
+        params: {
+          includeGroups: 'true',
+        },
+      });
       return response.data.map(mapCategoryResponseToCalendar);
     } catch (error) {
       console.error('[calendarsApi.listCalendars] Error fetching calendars:', error);

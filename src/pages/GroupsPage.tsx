@@ -139,9 +139,13 @@ export default function GroupsPage({ schedules, setSchedules }: GroupsPageProps)
       const startDateTime = new Date(`${newEvent.date}T${newEvent.startTime}`);
       const endDateTime = new Date(`${newEvent.date}T${newEvent.endTime}`);
 
-      // Get user's first calendar for the schedule
+      // Get user's default calendar for the schedule
+      // Priority: 1. "Calendar" (default), 2. local type, 3. first calendar
       const calendars = await calendarsApi.listCalendars();
-      const defaultCalendar = calendars.find(c => c.type === 'local') || calendars[0];
+      const defaultCalendar =
+        calendars.find(c => c.name === 'Calendar') ||
+        calendars.find(c => c.type === 'local') ||
+        calendars[0];
 
       if (!defaultCalendar) {
         toast.error('캘린더가 없습니다. 먼저 캘린더를 생성해주세요.');

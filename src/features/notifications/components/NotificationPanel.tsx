@@ -39,7 +39,6 @@ export default function NotificationPanel() {
   const checkForNewFriendRequests = useCallback(async () => {
     // Prevent concurrent executions using global flag
     if (globalIsChecking) {
-      console.log('[NotificationPanel] Already checking (global), skipping...');
       return;
     }
 
@@ -49,16 +48,12 @@ export default function NotificationPanel() {
       // Only check if user is logged in (has auth token)
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        console.log('[NotificationPanel] Not logged in, skipping friend request check');
         return;
       }
 
-      console.log('[NotificationPanel] Checking for new friend requests...');
       const pendingRequests = await friendsApi.getPendingRequests();
-      console.log('[NotificationPanel] Pending requests:', pendingRequests);
 
       if (pendingRequests.length === 0) {
-        console.log('[NotificationPanel] No pending requests');
         return;
       }
 
@@ -70,20 +65,14 @@ export default function NotificationPanel() {
           .map(n => n.relatedId)
       );
 
-      console.log('[NotificationPanel] Existing notification request IDs:', Array.from(existingRequestIds));
-      console.log('[NotificationPanel] Already processed request IDs (global):', Array.from(globalProcessedIds));
-
       let hasNewRequests = false;
 
       // Check for new requests that we haven't processed yet
       for (const request of pendingRequests) {
         // Skip if already in global processedIds or if notification already exists
         if (globalProcessedIds.has(request.id) || existingRequestIds.has(request.id)) {
-          console.log('[NotificationPanel] Skipping request (already processed):', request.id);
           continue;
         }
-
-        console.log('[NotificationPanel] Creating notification for request:', request.id, request.fromUserName);
 
         // Create notification for this friend request
         await notificationsApi.createNotification(
@@ -100,7 +89,6 @@ export default function NotificationPanel() {
 
       // Reload notifications if there were new requests
       if (hasNewRequests) {
-        console.log('[NotificationPanel] Reloading notifications after creating new ones');
         const data = await notificationsApi.listNotifications();
         setNotifications(data);
       }
