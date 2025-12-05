@@ -395,7 +395,7 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
                 <Label htmlFor="project-deadline">데드라인 (선택사항)</Label>
                 <Input
                   id="project-deadline"
-                  type="datetime-local"
+                  type="date"
                   value={newProject.deadline}
                   onChange={(e) => setNewProject({ ...newProject, deadline: e.target.value })}
                 />
@@ -463,7 +463,7 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
               <Label htmlFor="subtask-deadline">데드라인 (선택사항)</Label>
               <Input
                 id="subtask-deadline"
-                type="datetime-local"
+                type="date"
                 value={newSubTask.deadline}
                 onChange={(e) => setNewSubTask({ ...newSubTask, deadline: e.target.value })}
               />
@@ -524,8 +524,8 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
                 <Label htmlFor="edit-deadline">데드라인 (선택사항)</Label>
                 <Input
                   id="edit-deadline"
-                  type="datetime-local"
-                  value={editingTask.deadline ? new Date(editingTask.deadline.getTime() - editingTask.deadline.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                  type="date"
+                  value={editingTask.deadline ? editingTask.deadline.toISOString().split('T')[0] : ''}
                   onChange={(e) => setEditingTask({ ...editingTask, deadline: e.target.value ? new Date(e.target.value) : undefined })}
                 />
               </div>

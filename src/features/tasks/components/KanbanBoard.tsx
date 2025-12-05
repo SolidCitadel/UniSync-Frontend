@@ -216,7 +216,7 @@ export default function KanbanBoard({ tasks, setTasks }: KanbanBoardProps) {
                 <Label htmlFor="deadline">데드라인 (선택사항)</Label>
                 <Input
                   id="deadline"
-                  type="datetime-local"
+                  type="date"
                   value={newTask.deadline}
                   onChange={(e) => setNewTask({ ...newTask, deadline: e.target.value })}
                 />
@@ -277,8 +277,8 @@ export default function KanbanBoard({ tasks, setTasks }: KanbanBoardProps) {
                 <Label htmlFor="edit-deadline">데드라인 (선택사항)</Label>
                 <Input
                   id="edit-deadline"
-                  type="datetime-local"
-                  value={editingTask.deadline ? new Date(editingTask.deadline.getTime() - editingTask.deadline.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                  type="date"
+                  value={editingTask.deadline ? editingTask.deadline.toISOString().split('T')[0] : ''}
                   onChange={(e) => setEditingTask({ ...editingTask, deadline: e.target.value ? new Date(e.target.value) : undefined })}
                 />
               </div>
