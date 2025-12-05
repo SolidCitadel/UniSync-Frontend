@@ -77,15 +77,6 @@ export default function GroupsPage({ schedules, setSchedules }: GroupsPageProps)
 
       setFriends(friendsData);
       setGroups(groupsData);
-
-      // Load all group schedules
-      // Note: Group schedules are not yet implemented in backend
-      // const allSchedules: GroupSchedule[] = [];
-      // for (const group of groupsData) {
-      //   const schedules = await groupsApi.getGroupSchedules(group.id);
-      //   allSchedules.push(...schedules);
-      // }
-      // setGroupSchedules(allSchedules);
     } catch (error: any) {
       console.error('Failed to load data:', error);
       toast.error(error.message || '데이터 로드 실패');
@@ -93,6 +84,33 @@ export default function GroupsPage({ schedules, setSchedules }: GroupsPageProps)
       setIsLoading(false);
     }
   };
+
+  // Convert schedules with groupId to GroupSchedule format
+  useEffect(() => {
+    console.log('[GroupsPage] All schedules from props:', schedules);
+    const groupSchedulesFromProps = schedules
+      .filter(s => s.groupId) // Only schedules with groupId
+      .map(s => {
+        // Find the group for this schedule
+        const group = groups.find(g => g.id === s.groupId);
+        // For group schedules, all group members should see it
+        const memberIds = group?.members?.map(m => m.id) || [];
+
+        return {
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          start: s.start,
+          end: s.end,
+          location: s.location,
+          groupId: s.groupId!,
+          memberIds: memberIds, // All group members
+          createdBy: '',
+        };
+      });
+    console.log('[GroupsPage] Filtered group schedules:', groupSchedulesFromProps);
+    setGroupSchedules(groupSchedulesFromProps);
+  }, [schedules, groups]);
 
   const handleCreateGroup = async () => {
     if (!newGroup.name.trim()) {

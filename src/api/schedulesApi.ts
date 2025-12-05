@@ -46,16 +46,22 @@ const mapScheduleResponseToSchedule = (response: ScheduleResponse): Schedule => 
     location: response.location || undefined,
     isCompleted: response.status === 'DONE',
     calendarId: response.categoryId.toString(),
+    groupId: response.groupId ? response.groupId.toString() : undefined,
   };
 };
 
 export const schedulesApi = {
   /**
    * Get all schedules
+   * @param includeGroups - true시 해당 사용자가 속한 모든 그룹의 일정도 추가로 가져옴
    */
-  async listSchedules(): Promise<Schedule[]> {
+  async listSchedules(includeGroups: boolean = true): Promise<Schedule[]> {
     try {
-      const response = await apiClient.get<ScheduleResponse[]>('/v1/schedules');
+      const response = await apiClient.get<ScheduleResponse[]>('/v1/schedules', {
+        params: {
+          includeGroups: includeGroups.toString(),
+        },
+      });
       return response.data.map(mapScheduleResponseToSchedule);
     } catch (error) {
       console.error('[schedulesApi.listSchedules] Error fetching schedules:', error);

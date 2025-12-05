@@ -24,6 +24,7 @@ export interface Schedule {
   location?: string;
   isCompleted: boolean;
   calendarId: string; // References Calendar.id
+  groupId?: string; // References Group.id (for group schedules)
 }
 
 // Task Types
