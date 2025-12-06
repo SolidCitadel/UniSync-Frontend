@@ -24,18 +24,6 @@ npm run dev
 
 애플리케이션이 **http://localhost:3000**에서 실행됩니다.
 
-### 환경 변수 설정
-
-`.env` 파일을 생성하고 다음 내용을 추가하세요:
-
-```env
-# API Gateway URL
-VITE_API_BASE_URL=http://localhost:8080/api
-
-# CORS Configuration
-CORS_ALLOWED_ORIGIN=http://localhost:3000
-```
-
 ## 주요 기능
 
 ### 인증
