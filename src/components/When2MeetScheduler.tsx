@@ -5,12 +5,6 @@ import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
 import { groupsApi } from '@/api';
 
-interface TimeSlot {
-  day: string;
-  hour: number;
-  selected: boolean;
-}
-
 interface Participant {
   id: string;
   name: string;
@@ -34,7 +28,7 @@ interface Props {
 }
 
 export default function When2MeetScheduler({
-  groupName,
+  groupName: _groupName,
   groupMembers,
   memberSchedules,
   currentUserId,

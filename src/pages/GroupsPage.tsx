@@ -106,6 +106,7 @@ export default function GroupsPage({ schedules, setSchedules }: GroupsPageProps)
           groupId: s.groupId!,
           memberIds: memberIds, // All group members
           createdBy: '',
+          createdAt: s.start,
         };
       });
     console.log('[GroupsPage] Filtered group schedules:', groupSchedulesFromProps);

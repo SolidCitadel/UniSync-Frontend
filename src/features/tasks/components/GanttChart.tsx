@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronDown, MoreVertical, ChevronLeft } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -123,19 +123,6 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
     const x = e.pageX - scrollContainerRef.current.offsetLeft;
     const walk = (x - startX) * 2; // 스크롤 속도 조절
     scrollContainerRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  // 좌우 버튼 스크롤
-  const handleScrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
-    }
-  };
-
-  const handleScrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
-    }
   };
 
   // Parent tasks (tasks without parentTaskId)
@@ -323,19 +310,6 @@ export default function GanttChart({ tasks, setTasks }: GanttChartProps) {
       console.error('Failed to update task:', error);
       toast.error('작업 수정에 실패했습니다.');
     }
-  };
-
-  const getBarPosition = (startDate: Date, endDate: Date) => {
-    const startOffset = Math.max(
-      0,
-      Math.ceil((startDate.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24))
-    );
-    const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-
-    return {
-      left: `${(startOffset / totalDays) * 100}%`,
-      width: `${(duration / totalDays) * 100}%`,
-    };
   };
 
   return (

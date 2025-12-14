@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Lock, LogOut, Camera, RefreshCw, BookOpen, FileText, User } from 'lucide-react';
+import { Mail, Lock, LogOut, Camera, RefreshCw, BookOpen, FileText, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { authApi } from '@/api/authApi';
 import { ecampusApi } from '@/api/ecampusApi';
 import { enrollmentsApi } from '@/api/enrollmentsApi';
 import { calendarsApi } from '@/api/calendarsApi';
-import type { User, Enrollment, Calendar } from '@/types';
+import type { User, Enrollment } from '@/types';
 
 interface MyPageProps {
   user: User | null;
@@ -33,7 +33,6 @@ export default function MyPage({ user, onLogout, onUserUpdate, onDataRefresh }: 
   const [isSyncingAssignments, setIsSyncingAssignments] = useState(false);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
-  const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
 
   // Initialize user data from props
@@ -49,7 +48,6 @@ export default function MyPage({ user, onLogout, onUserUpdate, onDataRefresh }: 
     const loadCalendars = async () => {
       try {
         const fetchedCalendars = await calendarsApi.listCalendars();
-        setCalendars(fetchedCalendars);
 
         // Check if Google Calendar exists
         const hasGoogleCalendar = fetchedCalendars.some(cal => cal.name === 'Google Calendar');
@@ -95,7 +93,7 @@ export default function MyPage({ user, onLogout, onUserUpdate, onDataRefresh }: 
   const handleConnectGoogle = async () => {
     try {
       // Create "Google Calendar" calendar
-      const newCalendar = await calendarsApi.createCalendar({
+      await calendarsApi.createCalendar({
         name: 'Google Calendar',
         color: '#4285F4', // Google blue color
       });
@@ -108,9 +106,6 @@ export default function MyPage({ user, onLogout, onUserUpdate, onDataRefresh }: 
       // Refresh data to show new calendar
       await onDataRefresh();
 
-      // Reload calendars
-      const fetchedCalendars = await calendarsApi.listCalendars();
-      setCalendars(fetchedCalendars);
     } catch (error: any) {
       console.error('[MyPage] Failed to create Google Calendar:', error);
       toast.error(error.message || '구글 캘린더 연동에 실패했습니다.');
@@ -336,7 +331,7 @@ export default function MyPage({ user, onLogout, onUserUpdate, onDataRefresh }: 
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-gray-400" />
+                  <UserIcon className="w-5 h-5 text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-500">이름</p>
                     <p className="font-medium">{user.name}</p>

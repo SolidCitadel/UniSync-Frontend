@@ -227,7 +227,7 @@ export const groupsApi = {
    */
   async updateGroup(groupId: string, name: string, description?: string): Promise<Group> {
     try {
-      const response = await apiClient.put<GroupResponse>(`/v1/groups/${groupId}`, {
+      await apiClient.put<GroupResponse>(`/v1/groups/${groupId}`, {
         name,
         description: description || '',
       });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Clock, ListTodo, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, ListTodo, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,7 +31,6 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
 
   const [currentDate, setCurrentDate] = useState(new Date()); // Start with current month
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
   const [isMoreEventsDialogOpen, setIsMoreEventsDialogOpen] = useState(false);
   const [selectedDaySchedules, setSelectedDaySchedules] = useState<Schedule[]>([]);
@@ -179,7 +178,6 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
       const day = String(date.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
 
-      setSelectedDate(date);
       setNewSchedule({
         title: '',
         description: '',
@@ -192,7 +190,6 @@ export default function MonthCalendar({ calendars, schedules, setSchedules, task
         isCompleted: false
       });
     } else {
-      setSelectedDate(new Date());
       setNewSchedule({
         title: '',
         description: '',

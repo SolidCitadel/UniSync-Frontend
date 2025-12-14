@@ -217,7 +217,7 @@ export const schedulesApi = {
    * Creates a parent task with startDate=today, endDate=schedule.end
    * Note: This endpoint may not be implemented yet in the backend
    */
-  async convertToTask(scheduleId: string): Promise<Task> {
+  async convertToTask(_scheduleId: string): Promise<Task> {
     try {
       // TODO: Implement backend endpoint for converting schedule to task
       // const response = await apiClient.post<TaskResponse>(`/v1/schedules/${scheduleId}/convert-to-task`);

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bell, Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,

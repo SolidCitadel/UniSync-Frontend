@@ -24,20 +24,20 @@ import {
 // Storage objects
 export const store = {
   users: [] as User[],
-  calendars: [...mockCalendars],
-  schedules: [...mockSchedules],
-  tasks: [...mockTasks],
-  friends: [...mockFriends],
+  calendars: [...mockCalendars] as Calendar[],
+  schedules: [...mockSchedules] as Schedule[],
+  tasks: [...mockTasks] as Task[],
+  friends: [...mockFriends] as Friend[],
   friendRequests: [] as FriendRequest[],
-  groups: [...mockGroups],
+  groups: [...mockGroups] as Group[],
   groupSchedules: [] as GroupSchedule[],
-  notifications: [...mockNotifications],
+  notifications: [...mockNotifications] as Notification[],
   currentUser: {
     id: 'current-user-id',
     name: '김철수',
     email: 'user@example.com',
     googleConnected: false,
-  } as User,
+  } as User | null,
 };
 
 // Helper functions for ID generation
