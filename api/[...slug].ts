@@ -5,8 +5,8 @@ const BACKEND_URL = 'http://ec2-52-79-240-51.ap-northeast-2.compute.amazonaws.co
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Build target URL with path and query
-    const { path, ...otherQuery } = req.query;
-    const pathSegment = Array.isArray(path) ? `/${path.join('/')}` : (path ? `/${path}` : '');
+    const { slug, ...otherQuery } = req.query;
+    const pathSegment = Array.isArray(slug) ? `/${slug.join('/')}` : (slug ? `/${slug}` : '');
 
     // Build query string from remaining query params
     const queryString = new URLSearchParams(otherQuery as Record<string, string>).toString();
