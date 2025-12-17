@@ -1,8 +1,7 @@
 import axios from 'axios';
 
-// Always use a relative base path so deployments (e.g., Vercel) can rewrite `/api/*` to the backend.
-// This makes all requests look like `/api/v1/...` from the browser.
-const API_BASE_URL = '/api';
+// API Base URL from environment variables
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Create axios instance
 export const apiClient = axios.create({
